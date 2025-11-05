@@ -1,18 +1,14 @@
 import carla
+import util
 import numpy as np
-import time, sys, subprocess, random, select, os
+import time, sys, subprocess, random, select, os, sys
 from queue import Queue, Empty
 
-random.seed(42)
-
-WIDTH = 1280
-HEIGHT = 720
-FPS = 30
 HEVC_CMD = [
     "ffmpeg", "-loglevel", "error",
     "-f", "rawvideo", "-pix_fmt", "bgr24",
-    "-s", f"{WIDTH}x{HEIGHT}",
-    "-r", str(FPS),
+    "-s", f"{util.WIDTH}x{util.HEIGHT}",
+    "-r", str(util.FPS),
     "-i", "-",
     "-an",
     "-c:v", "libx265", "-preset", "ultrafast", "-tune", "zerolatency",
@@ -22,6 +18,30 @@ HEVC_CMD = [
 ]
 
 def main():
+    util.common_init()
+
+    client = carla.Client("localhost", 2000)
+    client.set_timeout(10.0)
+    world = client.get_world()
+    util.check_sync(world)
+
+    cam_bp, cam_tf = util.create_camera(world)
+    camera = world.try_spawn_actor(cam_bp, cam_tf)
+    if camera is None:
+        raise RuntimeError("Failed to spawn camera (position occupied). Try again.")
+
+    # FIXME: this needs to be checked.
+    q: Queue = Queue(maxsize=1)
+    def on_frame(frame):
+        try:
+            q.get_nowait()
+        except Empty:
+            pass
+        q.put_nowait(frame)
+    
+    # this is an async callback, a background thread is spawned
+    camera.listen(on_frame) 
+    print("Started camera...")
 
     proc = subprocess.Popen(
         HEVC_CMD,
@@ -30,64 +50,19 @@ def main():
         stderr=subprocess.PIPE,
         bufsize=0,
     )
-    print("Started HEVC encoder...")
-
-    client = carla.Client("localhost", 2000)
-    client.set_timeout(10.0)
-    world = client.get_world()
-    bp_lib = world.get_blueprint_library()
-
-    # --- Camera blueprint ---
-    cam_bp = bp_lib.find("sensor.camera.rgb")
-    cam_bp.set_attribute("image_size_x", str(WIDTH))
-    cam_bp.set_attribute("image_size_y", str(HEIGHT))
-    cam_bp.set_attribute("fov", "90")
-    cam_bp.set_attribute("sensor_tick", str(1.0 / FPS))
-
-    # --- Pick a reasonable world-space location and aim it down the road ---
-    # sp = random.choice(world.get_map().get_spawn_points())
-    # cam_loc = sp.location + carla.Location(x=8.0, y=0.0, z=8.0)
-    # cam_rot = carla.Rotation(pitch=-15.0, yaw=sp.rotation.yaw)  # look along lane
-
-    # Hardcoded coordinates
-    cam_loc = carla.Location(x=151.105438, y=-200.910126, z=8.275307)
-    cam_rot = carla.Rotation(pitch=-15.000000, yaw=-178.560471, roll=0.000000)  # look along lane
-
-    cam_tf = carla.Transform(cam_loc, cam_rot)
-
-    print(cam_tf)
-
-    camera = world.try_spawn_actor(cam_bp, cam_tf)
-    if camera is None:
-        raise RuntimeError("Failed to spawn camera (position occupied). Try again.")
-
-    # Let you visually verify placement
-    world.get_spectator().set_transform(cam_tf)
-
-    # --- Use a queue so we can drive the world tick safely ---
-    q: Queue = Queue()
-    camera.listen(q.put)
-
-    # Detect sync mode & set up a safe tick loop
-    settings = world.get_settings()
-    sync = settings.synchronous_mode
-    print(f"Synchronous mode: {sync}")
-
-    # If sim is async but very fast, we can wait for server ticks
-    # If sim is sync, we must call world.tick() to advance frames
+    print("HEVC camera streaming. Press Ctrl+C to quit.")
+    
     try:
-        print("HEVC camera streaming. Press Ctrl+C to quit.")
         while True:
-            if sync:
-                world.tick()  # advance one frame so sensors produce data
-            else:
-                # FIXME: remove this and change to a dequeue of size 1.
-                # drop frames as needed and don't link the camera speed
-                # to the simulation speed.
-                world.wait_for_tick()
+            '''
+            # FIXME: remove this and change to a dequeue of size 1.
+            # drop frames as needed and don't link the camera speed
+            # to the simulation speed.
+            world.wait_for_tick()
+            '''
 
             try:
-                frame = q.get(timeout=1.0)  # get the latest frame
+                frame = q.get(block=True)  # get the latest frame
             except Empty:
                 continue
 
@@ -105,7 +80,6 @@ def main():
         print("Stopping HEVC encoder...")
         proc.stdin.close()
         proc.wait()
-        print("HEVC encoder stopped.")
 
 if __name__ == "__main__":
     main()
