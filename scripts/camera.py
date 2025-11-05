@@ -8,6 +8,10 @@ from ultralytics import YOLO
 
 random.seed(42)
 
+WIDTH = 1280
+HEIGHT = 720
+FPS = 30
+
 def main():
     client = carla.Client("localhost", 2000)
     client.set_timeout(10.0)
@@ -16,10 +20,10 @@ def main():
 
     # --- Camera blueprint ---
     cam_bp = bp_lib.find("sensor.camera.rgb")
-    cam_bp.set_attribute("image_size_x", "1280")
-    cam_bp.set_attribute("image_size_y", "720")
+    cam_bp.set_attribute("image_size_x", str(WIDTH))
+    cam_bp.set_attribute("image_size_y", str(HEIGHT))
     cam_bp.set_attribute("fov", "90")
-    cam_bp.set_attribute("sensor_tick", "0.033")  # 20 FPS target in sync mode
+    cam_bp.set_attribute("sensor_tick", str(1.0 / FPS))
 
     # --- Pick a reasonable world-space location and aim it down the road ---
     # sp = random.choice(world.get_map().get_spawn_points())
