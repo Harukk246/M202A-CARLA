@@ -15,9 +15,9 @@ SPAWN_LOCATION = carla.Location(x=151.105438, y=-200.910126, z=8.275307)
 SPAWN_ROTATION = carla.Rotation(pitch=-15.000000, yaw=-178.560471, roll=0.000000)
 
 # Control parameters
-THROTTLE_VALUE = 0.5  # Forward throttle when up arrow is pressed
+THROTTLE_VALUE = 1  # Forward throttle when up arrow is pressed
 REVERSE_VALUE = 0.3   # Reverse throttle when down arrow is pressed
-BRAKE_VALUE = 0.5     # Brake when no movement keys are pressed
+BRAKE_VALUE = 1     # Brake when no movement keys are pressed
 STEER_STEP = 0.05     # Steering increment per frame
 MAX_STEER = 0.7       # Maximum steering angle
 STEER_DECAY = 0.02    # Steering return-to-center rate
