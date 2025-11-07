@@ -6,15 +6,42 @@ from queue import Queue, Empty
 
 HEVC_CMD = [
     "ffmpeg", "-loglevel", "error",
-    "-f", "rawvideo", "-pix_fmt", "bgr24",
+
+    # Raw CARLA frames
+    "-f", "rawvideo",
+    "-pix_fmt", "bgra",
     "-s", f"{util.WIDTH}x{util.HEIGHT}",
     "-r", str(util.FPS),
     "-i", "-",
+
     "-an",
-    "-c:v", "libx265", "-preset", "ultrafast", "-tune", "zerolatency",
-    "-x265-params", "keyint=50:no-scenecut=1",
+
+    # NVENC HEVC tuned for low latency
+    "-c:v", "hevc_nvenc",
+    "-tune", "ll",                 # low-latency path
+    "-preset", "p1",               # fastest
+    "-rc", "cbr",                  # constant bitrate (stable)
+    "-b:v", "5M",                  # ★ target bitrate for 720p30
+    "-maxrate", "5M",              # cap peak
+    "-bufsize", "1M",              # ★ ~200ms VBV at 5 Mb/s
+    "-rc-lookahead", "0",          # no lookahead queue
+    "-g", str(util.FPS),           # ★ 1s GOP (e.g., 30 at 30fps)
+    "-bf", "0",                    # ★ no B-frames
+    "-refs", "1",                  # minimal refs
+    "-forced-idr", "1",            # make GOP boundaries IDR
+    "-spatial_aq", "0",
+    "-temporal_aq", "0",
+
+    # Transport/mux: minimize buffering
+    "-fflags", "nobuffer",
+    "-flags", "low_delay",
+    "-flush_packets", "1",
+    "-max_delay", "0",
+    "-muxdelay", "0",
+    "-muxpreload", "0",
+
     "-f", "mpegts",
-    "udp://127.0.0.1:5000?pkt_size=1316",
+    "udp://127.0.0.1:5000?pkt_size=1316"
 ]
 
 def main():
@@ -62,13 +89,12 @@ def main():
             '''
 
             try:
-                frame = q.get(block=True)  # get the latest frame
+                frame = q.get(timeout=0.05)
             except Empty:
                 continue
 
-            # CARLA gives BGRA; ffmpeg expects BGR24 (3 bytes/pixel)
-            arr = np.frombuffer(frame.raw_data, np.uint8).reshape((frame.height, frame.width, 4))[:, :, :3]
-            proc.stdin.write(arr.tobytes())
+            # let ffmpeg handle color space conversion.
+            proc.stdin.write(frame.raw_data)
 
     except KeyboardInterrupt:
         pass
