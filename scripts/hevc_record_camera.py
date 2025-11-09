@@ -1,50 +1,63 @@
 import carla
 import util
 import numpy as np
-import time, sys, subprocess, random, select, os, sys
+import time, sys, subprocess, random, select, os, argparse
 from queue import Queue, Empty
 
-HEVC_CMD = [
-    "ffmpeg", "-loglevel", "error",
+def build_hevc_cmd(filename):
+    return [
+        "ffmpeg",
 
-    # Raw CARLA frames
-    "-f", "rawvideo",
-    "-pix_fmt", "bgra",
-    "-s", f"{util.WIDTH}x{util.HEIGHT}",
-    "-r", str(util.FPS),
-    "-i", "-",
+        # Raw CARLA frames
+        "-f", "rawvideo",
+        "-pix_fmt", "bgra",
+        "-s", f"{util.WIDTH}x{util.HEIGHT}",
+        "-r", str(util.FPS),
+        "-i", "-",
 
-    "-an",
+        "-an",
 
-    # NVENC HEVC tuned for low latency
-    "-c:v", "hevc_nvenc",
-    "-tune", "ll",                 # low-latency path
-    "-preset", "p1",               # fastest
-    "-rc", "cbr",                  # constant bitrate (stable)
-    "-b:v", "5M",                  # ★ target bitrate for 720p30
-    "-maxrate", "5M",              # cap peak
-    "-bufsize", "1M",              # ★ ~200ms VBV at 5 Mb/s
-    "-rc-lookahead", "0",          # no lookahead queue
-    "-g", str(util.FPS),           # ★ 1s GOP (e.g., 30 at 30fps)
-    "-bf", "0",                    # ★ no B-frames
-    "-refs", "1",                  # minimal refs
-    "-forced-idr", "1",            # make GOP boundaries IDR
-    "-spatial_aq", "0",
-    "-temporal_aq", "0",
+        # NVENC HEVC tuned for low latency
+        "-c:v", "hevc_nvenc",
+        "-tune", "ll",                 # low-latency path
+        "-preset", "p1",               # fastest
+        "-rc", "cbr",                  # constant bitrate (stable)
+        "-b:v", "5M",                  # ★ target bitrate for 720p30
+        "-maxrate", "5M",              # cap peak
+        "-bufsize", "1M",              # ★ ~200ms VBV at 5 Mb/s
+        "-rc-lookahead", "0",          # no lookahead queue
+        "-g", str(util.FPS),           # ★ 1s GOP (e.g., 30 at 30fps)
+        "-bf", "0",                    # ★ no B-frames
+        "-refs", "1",                  # minimal refs
+        "-forced-idr", "1",            # make GOP boundaries IDR
+        "-spatial_aq", "0",
+        "-temporal_aq", "0",
 
-    # Transport/mux: minimize buffering
-    "-fflags", "nobuffer",
-    "-flags", "low_delay",
-    "-flush_packets", "1",
-    "-max_delay", "0",
-    "-muxdelay", "0",
-    "-muxpreload", "0",
+        # Transport/mux: minimize buffering
+        "-fflags", "nobuffer",
+        "-flags", "low_delay",
+        "-flush_packets", "1",
+        "-max_delay", "0",
+        "-muxdelay", "0",
+        "-muxpreload", "0",
 
-    "-f", "mpegts",
-    "udp://127.0.0.1:5000?pkt_size=1316"
-]
+        "-f", "mp4",
+        filename
+    ]
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Record CARLA camera to HEVC file",
+        epilog="Examples:\n"
+               "  %(prog)s output.mp4              # Record until Ctrl+C\n"
+               "  %(prog)s output.mp4 -d 30        # Record for 30 seconds\n"
+               "  %(prog)s output.mp4 --duration 60 # Record for 60 seconds",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("filename", help="Output filename (e.g., output.mp4)")
+    parser.add_argument("-d", "--duration", type=float, help="Recording duration in seconds")
+    args = parser.parse_args()
+
     util.common_init()
 
     client = carla.Client("localhost", 2000)
@@ -71,14 +84,15 @@ def main():
     print("Started camera...")
 
     proc = subprocess.Popen(
-        HEVC_CMD,
+        build_hevc_cmd(args.filename),
         stdin=subprocess.PIPE,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.PIPE,
         bufsize=0,
     )
-    print("HEVC camera streaming. Press Ctrl+C to quit.")
+    print(f"HEVC camera recording to {args.filename}. Press Ctrl+C to quit.")
     
+    start_time = time.time()
     try:
         while True:
             '''
@@ -87,6 +101,9 @@ def main():
             # to the simulation speed.
             world.wait_for_tick()
             '''
+
+            if args.duration and (time.time() - start_time) >= args.duration:
+                break
 
             try:
                 frame = q.get(timeout=0.05)
