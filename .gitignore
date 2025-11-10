@@ -1,2 +1,4 @@
 *.pt
 __pycache__
+sn1_tcpdump.log
+sniff_ota.pcap
