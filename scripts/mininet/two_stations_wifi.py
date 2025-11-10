@@ -6,6 +6,10 @@ from mn_wifi.link import wmediumd, mesh
 from mn_wifi.wmediumdConnector import interference
 from mininet.log import setLogLevel, info
 
+# File paths
+PCAP_FILE = './sniff_ota.pcap'
+TCPDUMP_LOG_FILE = './sn1_tcpdump.log'
+
 def build_and_run_topology():
     setLogLevel('info')
     # Use wmediumd with interference so frames traverse the "air"
@@ -29,6 +33,11 @@ def build_and_run_topology():
     c1.start()
     ap1.start([c1])
 
+    # --- Disable IPv6 ---
+    for node in [sta1, sn1, ap1]:
+        node.cmd("sysctl -w net.ipv6.conf.all.disable_ipv6=1")
+        node.cmd("sysctl -w net.ipv6.conf.default.disable_ipv6=1")
+
     # OPTIONAL: visualize positions (requires X/GUI). Comment out if headless.
     # net.plotGraph(max_x=100, max_y=100)
 
@@ -48,9 +57,9 @@ def build_and_run_topology():
     sn1.cmd(f'iw dev {mon_if} set channel {chan}')
 
     # Start tcpdump to capture raw 802.11 (radiotap) frames
-    pcap_path = '/tmp/sniff_ota.pcap'
+    pcap_path = PCAP_FILE
     # -I (rfmon hint) is safe even though iface is already monitor; -s 0 = no snaplen truncation
-    sn1.cmd(f'tcpdump -s 0 -i {mon_if} -w {pcap_path} >/tmp/sn1_tcpdump.log 2>&1 &')
+    sn1.cmd(f'tcpdump -s 0 -i {mon_if} -w {pcap_path} > {TCPDUMP_LOG_FILE} 2>&1 &')
     info(f"*** Sniffer running on {mon_if}; writing to {pcap_path}\n")
 
     info(f"*** Sniffer running on {sn1_wlan}; writing to {pcap_path}\n")
@@ -72,7 +81,7 @@ def build_and_run_topology():
 
 if __name__ == "__main__":
     # delete existing files
-    for filepath in ['/tmp/sn1_tcpdump.log', '/tmp/sniff_ota.pcap']:
+    for filepath in [TCPDUMP_LOG_FILE, PCAP_FILE]:
         try:
             os.remove(filepath)
         except FileNotFoundError:
@@ -80,7 +89,7 @@ if __name__ == "__main__":
 
     build_and_run_topology()
 
-    with open('/tmp/sn1_tcpdump.log') as f:
+    with open(TCPDUMP_LOG_FILE) as f:
         print(f.read())
 
     print("\nDone!")
