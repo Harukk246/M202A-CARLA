@@ -41,7 +41,7 @@ HEVC_CMD = [
     "-muxpreload", "0",
 
     "-f", "mpegts",
-    "udp://127.0.0.1:5000?pkt_size=1316"
+    "udp://127.0.0.1:5000?pkt_size=1316" # for decoder friendly alignment since max packet size is 1500.
 ]
 
 def main():
