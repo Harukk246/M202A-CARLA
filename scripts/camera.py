@@ -27,7 +27,7 @@ def main():
     print("Loading YOLO model...")
 
     model = YOLO("yolov8n.pt")
-    ALLOWED_CLASSES = ["car", "truck", "bus", "motorbike", "traffic light", "person"]
+    ALLOWED_CLASSES = ["car", "truck", "bus", "motorbike"]
 
     try:
         print("Static camera streaming. Press Ctrl+C to quit.")
