@@ -6,6 +6,8 @@ import time, sys
 from queue import Queue, Empty
 import random
 from ultralytics import YOLO
+from ultralytics.utils import yaml_load
+YOLO("yolo11n").download()
 
 def main():
     util.common_init()
