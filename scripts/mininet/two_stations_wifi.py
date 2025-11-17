@@ -17,8 +17,8 @@ def build_and_run_topology():
 
     info("*** Creating nodes\n")
     # Positions help Mininet-WiFi decide associations; keep sniffer near the path
-    sta1 = net.addStation('sta1', ip='10.0.0.1/24', position='10,30,0')
-    ap1  = net.addAccessPoint('ap1', ssid='ssid-wifi', mode='g', channel='1', position='20,30,0')
+    sta1 = net.addStation('sta1', ip='10.0.0.200/24', position='10,30,0')
+    ap1  = net.addAccessPoint('ap1', ip='10.0.0.1/24', ssid='ssid-wifi', mode='g', channel='1', position='20,30,0', datapath='user')
     sn1  = net.addStation('sn1', ip='10.0.0.254/24', position='15,28,0')  # sniffer (IP not really needed)
 
     c1 = net.addController('c1')
@@ -32,6 +32,11 @@ def build_and_run_topology():
     net.build()
     c1.start()
     ap1.start([c1])
+
+    ap1.setIP('10.0.0.1/24', intf='ap1-wlan1')
+
+    # Force sta1 to associate with ap1's SSID
+    sta1.cmd('iwconfig sta1-wlan0 essid ssid-wifi')
 
     # --- Disable IPv6 ---
     for node in [sta1, sn1, ap1]:
