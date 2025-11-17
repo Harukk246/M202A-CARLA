@@ -18,6 +18,7 @@ def build_and_run_topology():
     info("*** Creating nodes\n")
     # Positions help Mininet-WiFi decide associations; keep sniffer near the path
     sta1 = net.addStation('sta1', ip='10.0.0.200/24', position='10,30,0')
+    sta2 = net.addStation('sta2', ip='10.0.0.201/24', position='12,30,0')
     ap1  = net.addAccessPoint('ap1', ip='10.0.0.1/24', ssid='ssid-wifi', mode='g', channel='1', position='20,30,0', datapath='user')
     sn1  = net.addStation('sn1', ip='10.0.0.254/24', position='15,28,0')  # sniffer (IP not really needed)
 
@@ -33,41 +34,35 @@ def build_and_run_topology():
     c1.start()
     ap1.start([c1])
 
+    # Keep AP IP; not strictly needed for sta1<->sta2, but harmless
     ap1.setIP('10.0.0.1/24', intf='ap1-wlan1')
 
     # Force sta1 to associate with ap1's SSID
     sta1.cmd('iwconfig sta1-wlan0 essid ssid-wifi')
+    sta2.cmd('iwconfig sta2-wlan0 essid ssid-wifi')
 
     # --- Disable IPv6 ---
-    for node in [sta1, sn1, ap1]:
+    for node in [sta1, sta2, sn1, ap1]:
         node.cmd("sysctl -w net.ipv6.conf.all.disable_ipv6=1")
         node.cmd("sysctl -w net.ipv6.conf.default.disable_ipv6=1")
 
     # OPTIONAL: visualize positions (requires X/GUI). Comment out if headless.
     # net.plotGraph(max_x=100, max_y=100)
 
-    sn1_wlan = 'sn1-wlan0'
-    mon_if   = 'sn1-mon0' # dedicated monitor interface
-    chan     = 1
-
-    info(f'*** Configuring sniffer monitor mode on channel {chan}\n')
-
-    # Clean up if it already exists (safe to ignore errors)
-    sn1.cmd(f'ip link set {mon_if} down >/dev/null 2>&1 || true')
-    sn1.cmd(f'iw dev {mon_if} del >/dev/null 2>&1 || true')
-
-    # Add monitor interface and bring it up on the AP channel
-    sn1.cmd(f'iw dev {sn1_wlan} interface add {mon_if} type monitor')
-    sn1.cmd(f'ip link set {mon_if} up')
-    sn1.cmd(f'iw dev {mon_if} set channel {chan}')
-
-    # Start tcpdump to capture raw 802.11 (radiotap) frames
+    # --- NEW: global hwsim0 sniffer (captures all 802.11 frames) ---
+    mon_if = 'hwsim0'
     pcap_path = PCAP_FILE
-    # -I (rfmon hint) is safe even though iface is already monitor; -s 0 = no snaplen truncation
-    sn1.cmd(f'tcpdump -s 0 -i {mon_if} -w {pcap_path} > {TCPDUMP_LOG_FILE} 2>&1 &')
-    info(f"*** Sniffer running on {mon_if}; writing to {pcap_path}\n")
 
-    info(f"*** Sniffer running on {sn1_wlan}; writing to {pcap_path}\n")
+    info("*** Starting sniffer on hwsim0\n")
+    # bring hwsim0 up in the root namespace
+    os.system("ifconfig hwsim0 up")
+    # NOTE: no -I here; hwsim0 already exposes 802.11 frames
+    os.system(
+        f'tcpdump -s 0 -i {mon_if} -w {pcap_path} > {TCPDUMP_LOG_FILE} 2>&1 &'
+    )
+    info(f"*** Sniffer running on {mon_if}; writing to {pcap_path}\n")
+    # --------------------------------------------------------------
+
     info("*** Ready. In another terminal you can stream to sta1/ap1.\n")
     info("*** When done, exit the CLI; we will stop tcpdump automatically.\n")
 
@@ -76,10 +71,8 @@ def build_and_run_topology():
 
     info("exit command received")
 
-    info("*** Stopping sniffer and deleting monitor interface\n")
-    sn1.cmd('pkill -f "tcpdump -s 0 -i sn1-mon0"')
-    sn1.cmd('ip link set sn1-mon0 down || true')
-    sn1.cmd('iw dev sn1-mon0 del || true')
+    info("*** Stopping sniffer\n")
+    os.system('pkill -f "tcpdump -s 0 -i hwsim0" || true')
 
     info("*** Stopping network\n")
     net.stop()
