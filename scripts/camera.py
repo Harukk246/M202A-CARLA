@@ -15,10 +15,14 @@ def main():
     world = client.get_world()
     util.check_sync(world)
 
+    ground_z = 0.0
     cam_bp, cam_tf = util.create_camera(world)
     camera = world.try_spawn_actor(cam_bp, cam_tf)
     if camera is None:
         raise RuntimeError("Failed to spawn camera (position occupied). Try again.")
+
+    # build projection matrix
+    K = util.build_intrinsic_matrix(util.WIDTH, util.HEIGHT, util.FOV)
 
     q: Queue = Queue()
     camera.listen(q.put)
@@ -26,7 +30,7 @@ def main():
     # LOAD YOLO MODEL
     print("Loading YOLO model...")
 
-    model = YOLO("yolov8n.pt")
+    model = YOLO("yolo11n.pt")
     ALLOWED_CLASSES = ["car", "truck", "bus", "motorbike"]
 
     try:
@@ -48,7 +52,7 @@ def main():
             arr = arr.copy()
 
             # the yolo model input dim is (720, 1280, 3)
-            results = model.track(arr, persist=True, tracker="bytetrack.yaml", verbose=False)
+            results = model.track(arr, persist=True, verbose=False)
             
             for result in results:
                 boxes = result.boxes
@@ -77,6 +81,10 @@ def main():
                         label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)[0]
                         cv2.rectangle(arr, (x1, y1 - label_size[1] - 10), (x1 + label_size[0], y1), (0, 255, 0), -1)
                         cv2.putText(arr, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
+
+                        # convert bbox to world coordinates
+                        bbox_center = util.bbox_bottom_center_to_world((x1, y1, x2, y2), K, cam_tf, ground_z)
+                        print(bbox_center)
 
             cv2.imshow("Static Security Camera", arr)
 
