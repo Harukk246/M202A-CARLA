@@ -4,8 +4,8 @@ import numpy as np
 import cv2
 from queue import Queue, Empty
 from ultralytics import YOLO
-
-# YOLO("yolo11n").download()
+from scipy.optimize import linear_sum_assignment
+from collections import defaultdict
 
 # Smoothing factor for world coordinates
 ALPHA = 0.7
@@ -13,6 +13,68 @@ ALPHA = 0.7
 IMG_ALPHA = 0.6
 # Input scaling factor to detect distant cars
 SCALE_FACTOR = 2.0
+
+# Initialize variables for MOTA calculation
+TP, FP, FN, IDSW = 0, 0, 0, 0
+track_history = defaultdict(list)  # Store history of tracked objects
+
+def compute_mota():
+    """Compute Multiple Object Tracking Accuracy (MOTA)."""
+    global TP, FP, FN, IDSW
+    if TP + FP + FN == 0:
+        return 0  # Avoid division by zero if no objects are detected
+    return 1 - (FP + FN + IDSW) / (TP + FP + FN)
+
+def associate_tracks(tracks, detections):
+    """Associate detected boxes with existing tracks using the Hungarian algorithm."""
+    cost_matrix = np.zeros((len(tracks), len(detections)))
+    for i, track in enumerate(tracks):
+        for j, detection in enumerate(detections):
+            cost_matrix[i, j] = 1 - compute_iou(track, detection)  # Cost = 1 - IoU
+    
+    row_ind, col_ind = linear_sum_assignment(cost_matrix)
+    return row_ind, col_ind, cost_matrix
+
+def compute_iou(box1, box2):
+    """Compute Intersection over Union (IoU) between two boxes."""
+    x1, y1, x2, y2 = box1
+    bx1, by1, bx2, by2 = box2
+
+    inter_area = max(0, min(x2, bx2) - max(x1, bx1)) * max(0, min(y2, by2) - max(y1, by1))
+    box1_area = (x2 - x1) * (y2 - y1)
+    box2_area = (bx2 - bx1) * (by2 - by1)
+    
+    union_area = box1_area + box2_area - inter_area
+    return inter_area / union_area if union_area > 0 else 0
+
+def update_tracking_info(frame_tracks, frame_detections):
+    """Update TP, FP, FN, IDSW based on matching."""
+    global TP, FP, FN, IDSW
+
+    # Associate tracks with detections
+    row_ind, col_ind, cost_matrix = associate_tracks(frame_tracks, frame_detections)
+
+    matched_tracks = set()
+    matched_detections = set()
+
+    # Print debugging information
+    print(f"Tracking {len(frame_tracks)} tracks, {len(frame_detections)} detections.")
+    print(f"Matching {len(row_ind)} pairs.")
+    print(f"Cost matrix:\n{cost_matrix}")
+    
+    for t, d in zip(row_ind, col_ind):
+        if cost_matrix[t, d] < 0.5:  # IoU threshold for matching
+            TP += 1
+            matched_tracks.add(t)
+            matched_detections.add(d)
+
+    FN += len(frame_detections) - len(matched_detections)
+    FP += len(frame_tracks) - len(matched_tracks)
+
+    # Count ID swaps by checking track IDs that are mismatched across frames
+    for t in range(len(frame_tracks)):
+        if t not in matched_tracks:
+            IDSW += 1
 
 def main():
     util.common_init()
@@ -41,7 +103,6 @@ def main():
 
     # Store smoothed world positions per track ID
     smoothed_tracks = {}
-    # Store smoothed image-space bounding boxes per track ID
     smoothed_boxes = {}
 
     frame_count = 0
@@ -55,7 +116,6 @@ def main():
             except Empty:
                 continue
 
-            # Convert BGRA -> BGR and make writable
             arr = np.frombuffer(frame.raw_data, np.uint8).reshape((frame.height, frame.width, 4))[:, :, :3].copy()
 
             # Upscale image for better distant car detection
@@ -71,6 +131,9 @@ def main():
                 verbose=False
             )
 
+            frame_tracks = []  # List of tracked objects in this frame
+            frame_detections = []  # List of detected objects in this frame
+
             # Iterate over tracked results
             for result in results:
                 if result.boxes is None or result.boxes.id is None:
@@ -84,7 +147,7 @@ def main():
                 # Rescale boxes back to original image size
                 xyxy /= SCALE_FACTOR
 
-                # Batch filter by allowed classes
+                # Filter by allowed classes
                 allowed_mask = np.array([model.names[c] in ALLOWED_CLASSES for c in cls_ids])
                 cls_ids = cls_ids[allowed_mask]
                 track_ids = track_ids[allowed_mask]
@@ -94,7 +157,7 @@ def main():
                 for cls_id, tid, (x1, y1, x2, y2) in zip(cls_ids, track_ids, xyxy):
                     class_name = model.names[cls_id]
 
-                    # Skip very small boxes (optional)
+                    # Skip small boxes
                     if (x2 - x1) < 10 or (y2 - y1) < 10:
                         continue
 
@@ -125,9 +188,17 @@ def main():
                         else:
                             smoothed_pos = bbox_center
                         smoothed_tracks[tid] = smoothed_pos
-                        print(f"Track {tid} smoothed world pos: {smoothed_pos}")
-                    else:
-                        print(f"Track {tid} bbox could not be projected to world coordinates")
+
+                    # Add track and detection for matching
+                    frame_tracks.append([x1, y1, x2, y2])  # Add the bounding box as track
+                    frame_detections.append([x1, y1, x2, y2])  # Add detection box for comparison
+
+            # Update tracking info for MOTA calculation
+            update_tracking_info(frame_tracks, frame_detections)
+
+            # Compute MOTA (for tracking accuracy)
+            mota_score = compute_mota()
+            print(f"MOTA: {mota_score}")
 
             # Display every frame (or adjust modulo for faster)
             frame_count += 1
@@ -144,7 +215,6 @@ def main():
         camera.stop()
         camera.destroy()
         cv2.destroyAllWindows()
-
 
 if __name__ == "__main__":
     main()
