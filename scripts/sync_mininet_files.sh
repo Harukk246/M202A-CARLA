@@ -8,6 +8,8 @@ REMOTE_PORT="2222"
 REMOTE_PATH="/home/wifi/carla-project/"
 LOCAL_PATH="$HOME/M202A-CARLA/scripts/mininet/"
 
+echo "password is wifi"
+
 # --- Sync ---
 rsync -avz -e "ssh -p ${REMOTE_PORT}" "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}" "${LOCAL_PATH}"
 
