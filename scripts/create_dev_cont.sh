@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export XDG_RUNTIME_DIR=/run/usr/1009
+
 AUTOCOMMIT="${1:-}"
 
 # Let container talk to your X server (you already ran xhost on the host)
