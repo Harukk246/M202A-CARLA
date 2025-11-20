@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-export XDG_RUNTIME_DIR=/run/usr/1009
+export XDG_RUNTIME_DIR=/run/user/1009
 
 AUTOCOMMIT="${1:-}"
 
