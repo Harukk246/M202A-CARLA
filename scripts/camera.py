@@ -6,8 +6,9 @@ from queue import Queue, Empty
 from ultralytics import YOLO
 from collections import defaultdict
 import time
+import math 
 
-# Iscaling factor to detect distant cars
+# scaling factor to detect distant cars
 SCALE_FACTOR = 2.0
 
 class VehicleKalmanFilter:
@@ -89,6 +90,18 @@ def get_world_from_pixels(u, v, ground_z, K, cam_transform):
     
     return cam_pos_w + t * ray_dir_w
 
+# helper for ground truth/debugging error
+def get_closest_carla_actor(estimated_pos, carla_actors):
+    closest_actor = None
+    min_dist = float('inf')
+    for actor in carla_actors:
+        act_loc = actor.get_location()
+        dist = math.sqrt((estimated_pos[0] - act_loc.x)**2 + (estimated_pos[1] - act_loc.y)**2)
+        if dist < min_dist:
+            min_dist = dist
+            closest_actor = actor
+    return closest_actor, min_dist
+
 def main():
     util.common_init()
     client = carla.Client("localhost", 2000)
@@ -119,6 +132,9 @@ def main():
         while True:
             world.wait_for_tick()
             current_time = world.get_snapshot().timestamp.elapsed_seconds
+            
+            # ground truth (REMOVE LATER)
+            carla_actors = world.get_actors().filter('vehicle.*')
             
             try:
                 frame = q.get(timeout=1.0)
@@ -156,6 +172,7 @@ def main():
                     raw_world_pos = get_world_from_pixels(u_c, v_b, ground_z, K, cam_tf)
                     
                     state_text = "Init"
+                    truth_text = "" # for ground truth
                     color = (0, 255, 255)
 
                     if raw_world_pos is not None:
@@ -186,11 +203,21 @@ def main():
                         
                         print(f"ID {tid} | {state_text}")
 
+                        #  ground truth (REMOVE LATER)
+                        truth_actor, _ = get_closest_carla_actor([smooth_x, smooth_y], carla_actors)
+                        if truth_actor:
+                            loc = truth_actor.get_location()
+                            truth_text = f"CARLA: ({loc.x:.1f}, {loc.y:.1f})"
+
                     # draw bounding box and label
                     cv2.rectangle(arr, (sx1, sy1), (sx2, sy2), color, 2)
                     cv2.putText(arr, f"ID:{int(tid)} {state_text}", (sx1, sy1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                    
+                    # print the ground truth
+                    if truth_text:
+                         cv2.putText(arr, truth_text, (sx1, sy2+20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
-            # Cremove filters for tracks that disappeared
+            # remove filters for tracks that disappeared
             for old_id in list(track_filters.keys()):
                 if old_id not in active_ids:
                     del track_filters[old_id]
