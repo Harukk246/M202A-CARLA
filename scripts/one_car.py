@@ -5,6 +5,8 @@
 import argparse, random, time, signal, sys
 import carla
 import math
+from agents.navigation.basic_agent import BasicAgent
+from agents.navigation.behavior_agent import BehaviorAgent
 
 def p(s): print(f"[spawn] {s}", flush=True)
 
@@ -115,27 +117,6 @@ def main():
     vehicles = world.get_actors(vehicle_ids)
     car = vehicles[0]
 
-    # STEERING
-    if not args.read_route:
-        for v in vehicles:
-            v.set_autopilot(True, tm.get_port())
-        p(f"Vehicles on autopilot: {len(vehicles)}")
-
-    def get_steering(vehicle, target_location):
-        """
-        Compute a simple steering value to head towards the target_location
-        """
-        print(f'steering towards {target_location}')
-        dx = target_location.x - vehicle.get_location().x
-        dy = target_location.y - vehicle.get_location().y
-
-        target_yaw = math.degrees(math.atan2(dy, dx))
-        vehicle_yaw = vehicle.get_transform().rotation.yaw
-        steer = (target_yaw - vehicle_yaw) / 45.0  # normalize
-        steer = max(-1.0, min(1.0, steer))  # clamp between -1 and 1
-        print(f"target_yaw: {target_yaw:.2f}, vehicle_yaw: {vehicle_yaw:.2f}, steer: {steer:.2f}")
-        return steer
-
     def cleanup():
         p("Cleaning up spawned actors …")
         try:
@@ -162,7 +143,7 @@ def main():
             world.tick()
         else:
             if args.read_route:
-                control = carla.VehicleControl()
+                
                 for waypoint in route:
                     while True:
                         loc = car.get_location()
