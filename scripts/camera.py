@@ -90,17 +90,20 @@ def get_world_from_pixels(u, v, ground_z, K, cam_transform):
     
     return cam_pos_w + t * ray_dir_w
 
-# helper for ground truth/debugging error
-def get_closest_carla_actor(estimated_pos, carla_actors):
-    closest_actor = None
+def get_closest_carla_vehicle(pos, vehicles):
+    closest_act_pos = np.zeros(2)
     min_dist = float('inf')
-    for actor in carla_actors:
-        act_loc = actor.get_location()
-        dist = math.sqrt((estimated_pos[0] - act_loc.x)**2 + (estimated_pos[1] - act_loc.y)**2)
+
+    for vehicle in vehicles:
+        act_pos_raw = vehicle.get_location()
+        act_pos = np.asarray([act_pos_raw.x, act_pos_raw.y])
+        dist = np.linalg.norm(act_pos - pos)
+
         if dist < min_dist:
             min_dist = dist
-            closest_actor = actor
-    return closest_actor, min_dist
+            closest_act_pos = act_pos
+
+    return closest_act_pos, min_dist
 
 def main():
     util.common_init()
@@ -116,6 +119,9 @@ def main():
     q = Queue()
     camera.listen(q.put)
 
+    # fetch all vehicles in world
+    vehicles = world.get_actors().filter('vehicle.*')
+
     print("Loading YOLOv8m...")
     model = YOLO("yolov8m.pt")
     ALLOWED_CLASSES = {"car", "truck", "bus", "motorbike"}
@@ -124,18 +130,14 @@ def main():
     track_filters = {}
     smoothed_boxes = {}
     IMG_ALPHA = 0.6
-    
-    frame_count = 0
+
     print("Tracking started...")
 
     try:
         while True:
-            world.wait_for_tick()
-            current_time = world.get_snapshot().timestamp.elapsed_seconds
-            
-            # ground truth (REMOVE LATER)
-            carla_actors = world.get_actors().filter('vehicle.*')
-            
+            snapshot = world.wait_for_tick()
+            current_time = snapshot.timestamp.elapsed_seconds
+
             try:
                 frame = q.get(timeout=1.0)
             except Empty:
@@ -201,21 +203,18 @@ def main():
                         state_text = f"Pos:({smooth_x:.1f}, {smooth_y:.1f}) Vel:{speed_kmh:.0f}km/h"
                         color = (0, 255, 0) # green for active tracking 
                         
-                        print(f"ID {tid} | {state_text}")
+                        # DEBUGGING turned off.
+                        # print(f"ID {tid} | {state_text}")
 
-                        #  ground truth (REMOVE LATER)
-                        truth_actor, _ = get_closest_carla_actor([smooth_x, smooth_y], carla_actors)
-                        if truth_actor:
-                            loc = truth_actor.get_location()
-                            truth_text = f"CARLA: ({loc.x:.1f}, {loc.y:.1f})"
+                        #  ground truth
+                        smooth_pos = np.asarray([smooth_x, smooth_y])
+                        ground_truth_pos, min_dist = get_closest_carla_vehicle(smooth_pos, vehicles)
+                        ground_truth_text = f"CARLA: ({ground_truth_pos[0]:.1f}, {ground_truth_pos[1]:.1f}), Err: {min_dist:.2f}"
+                        cv2.putText(arr, ground_truth_text, (sx1, sy2+20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
                     # draw bounding box and label
                     cv2.rectangle(arr, (sx1, sy1), (sx2, sy2), color, 2)
                     cv2.putText(arr, f"ID:{int(tid)} {state_text}", (sx1, sy1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-                    
-                    # print the ground truth
-                    if truth_text:
-                         cv2.putText(arr, truth_text, (sx1, sy2+20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
             # remove filters for tracks that disappeared
             for old_id in list(track_filters.keys()):
@@ -223,13 +222,15 @@ def main():
                     del track_filters[old_id]
 
             cv2.imshow("Kalman Fusion", arr)
+
+            # exit on escape
             if cv2.waitKey(1) == 27: break
 
     except KeyboardInterrupt: pass
     finally:
         camera.stop()
+        camera.destroy()
         cv2.destroyAllWindows()
-        util.common_cleanup()
 
 if __name__ == "__main__":
     main()
