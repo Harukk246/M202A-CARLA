@@ -40,28 +40,47 @@ class PassThroughScenario(BasicScenario):
         """
         spawn_points = self.map.get_spawn_points()
         
-        # --- CONFIGURATION: Set Start and End ---
-        # We simply pick the first spawn point as start, and the 10th as the goal.
-        # You can change these indices to any valid spawn points on the map.
+        # Default configuration
+        model = 'vehicle.tesla.model3'
+        color = None
         start_transform = spawn_points[0]
+
+        # 1. Parse XML Configuration
+        if config.ego_vehicles and len(config.ego_vehicles) > 0:
+            ego_config = config.ego_vehicles[0]
+            
+            # Use model and color from XML
+            model = ego_config.model
+            color = ego_config.color
+            
+            # Check if XML has specific coordinates. 
+            # If x=0 and y=0, it likely means no coords were provided in XML.
+            # In that case, we keep the map's default spawn_points[0].
+            if abs(ego_config.transform.location.x) > 0.1 or abs(ego_config.transform.location.y) > 0.1:
+                start_transform = ego_config.transform
+                print(f"[Scenario] Using XML coordinates: {start_transform.location}")
+            else:
+                print(f"[Scenario] XML coordinates empty/zero. Overwriting with map spawn point.")
+
+        # 2. Set Destination (Arbitrary for this demo)
         destination_transform = spawn_points[10] if len(spawn_points) > 10 else spawn_points[-1]
 
-        # 1. Spawn Ego Vehicle
+        # 3. Spawn Ego Vehicle
         self.ego_vehicle = CarlaDataProvider.request_new_actor(
-            'vehicle.tesla.model3', 
-            start_transform
+            model, 
+            start_transform,
+            color=color
         )
         self.other_actors.append(self.ego_vehicle)
 
-        # 2. Calculate Route using CARLA's GlobalRoutePlanner
-        # This generates the list of waypoints the WaypointFollower will use.
-        grp = GlobalRoutePlanner(self.map, 2.0) # 2.0 is the resolution between waypoints
+        # 4. Calculate Route
+        grp = GlobalRoutePlanner(self.map, 2.0)
         self.route_plan = grp.trace_route(
             start_transform.location, 
             destination_transform.location
         )
         
-        print(f"[Scenario] Route calculated: {len(self.route_plan)} waypoints.")
+        print(f"[Scenario] Model: {model}, Color: {color}")
         print(f"[Scenario] Start: {start_transform.location}")
         print(f"[Scenario] End:   {destination_transform.location}")
 
@@ -78,12 +97,11 @@ class PassThroughScenario(BasicScenario):
         start_condition = ActorTransformSetter(self.ego_vehicle, self.ego_vehicle.get_transform())
         
         # 2. Drive the route
-        # WaypointFollower takes the pre-calculated plan and handles steering/throttle
         follow_route = WaypointFollower(
             self.ego_vehicle, 
             self.target_speed, 
             plan=self.route_plan,
-            avoid_collision=True # Standard autopilot collision avoidance
+            avoid_collision=True
         )
 
         # 3. Cleanup
@@ -96,14 +114,7 @@ class PassThroughScenario(BasicScenario):
         return behavior
 
     def _create_test_criteria(self):
-        """
-        Empty criteria for a simple pass-through. 
-        Add CollisionTest here if you want the scenario to fail on crash.
-        """
         return []
 
     def __del__(self):
-        """
-        Cleanup actors if the object is deleted
-        """
         self.remove_all_actors()

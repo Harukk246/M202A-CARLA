@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<scenarios>
+    <scenario name="PassThroughScenario_1" type="PassThroughScenario" town="Town05">
+        <ego_vehicle model="vehicle.toyota.prius" color="255,0,0"/>
+    </scenario>
+</scenarios>
