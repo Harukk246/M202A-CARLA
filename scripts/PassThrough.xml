@@ -2,5 +2,6 @@
 <scenarios>
     <scenario name="PassThroughScenario_1" type="PassThroughScenario" town="Town05">
         <ego_vehicle model="vehicle.toyota.prius" color="255,0,0"/>
+        <weather cloudiness="0" precipitation="0" precipitation_deposits="0" wind_intensity="0" sun_azimuth_angle="0" sun_altitude_angle="75" />
     </scenario>
 </scenarios>
