@@ -12,7 +12,7 @@ import math
 SCALE_FACTOR = 2.0
 
 class VehicleKalmanFilter:
-    def __init__(self, initial_pos_x, initial_pos_y):
+    def __init__(self, initial_pos_x, initial_pos_y, initial_time):
         self.kf = cv2.KalmanFilter(4, 2)
         
         # pos = pos + vel*dt, [x, y, v_x, v_y]
@@ -30,10 +30,10 @@ class VehicleKalmanFilter:
         ], np.float32)
 
         # uncertainty in physics model
-        self.kf.processNoiseCov = np.eye(4, dtype=np.float32) * 0.01 # 1e-2
+        self.kf.processNoiseCov = np.eye(4, dtype=np.float32) * 0.1 # 1e-2
 
         # uncertainty in yolo
-        self.kf.measurementNoiseCov = np.eye(2, dtype=np.float32) * 1.0 # 1e0
+        self.kf.measurementNoiseCov = np.eye(2, dtype=np.float32) * 0.3 # 1e0
 
         # initial error
         self.kf.errorCovPost = np.eye(4, dtype=np.float32) * 1.0
@@ -46,7 +46,7 @@ class VehicleKalmanFilter:
             [0]
         ], np.float32)
         
-        self.last_time = time.time()
+        self.last_time = initial_time
 
     # predict next state
     def predict(self, current_time):
@@ -90,37 +90,43 @@ def get_world_from_pixels(u, v, ground_z, K, cam_transform):
     
     return cam_pos_w + t * ray_dir_w
 
-def get_closest_carla_vehicle(pos, vehicles):
-    closest_act_pos = np.zeros(2)
-    min_dist = float('inf')
+# ---------- Camera intrinsics ----------
+def build_intrinsic_matrix(width, height, fov_deg):
+    """Build camera intrinsic matrix K from FOV + resolution."""
+    fov_rad = np.deg2rad(fov_deg)
+    f = width / (2.0 * np.tan(fov_rad / 2.0))  # fx = fy
 
-    for vehicle in vehicles:
-        act_pos_raw = vehicle.get_location()
-        act_pos = np.asarray([act_pos_raw.x, act_pos_raw.y])
-        dist = np.linalg.norm(act_pos - pos)
+    cx = width / 2.0
+    cy = height / 2.0
 
-        if dist < min_dist:
-            min_dist = dist
-            closest_act_pos = act_pos
+    K = np.array([
+        [f, 0, cx],
+        [0, f, cy],
+        [0, 0, 1]
+    ], dtype=np.float32)
 
-    return closest_act_pos, min_dist
+    return K
 
 def main():
     util.common_init()
     client = carla.Client("localhost", 2000)
     client.set_timeout(10.0)
     world = client.get_world()
+
+    # fetch all vehicles in world
+    vehicles = world.get_actors().filter('vehicle.*')
     
+    # setup camera
     ground_z = 0.0
     cam_bp, cam_tf = util.create_camera(world)
     camera = world.try_spawn_actor(cam_bp, cam_tf)
     
-    K = util.build_intrinsic_matrix(util.WIDTH, util.HEIGHT, util.FOV)
+    # setup camera intrinsics for projecting to world frame.
+    K = build_intrinsic_matrix(util.WIDTH, util.HEIGHT, util.FOV)
+
+    # setup camera frame capture from Carla
     q = Queue()
     camera.listen(q.put)
-
-    # fetch all vehicles in world
-    vehicles = world.get_actors().filter('vehicle.*')
 
     print("Loading YOLOv8m...")
     model = YOLO("yolov8m.pt")
@@ -129,7 +135,7 @@ def main():
     # kalman filter
     track_filters = {}
     smoothed_boxes = {}
-    IMG_ALPHA = 0.6
+    IMG_ALPHA = 0.15
 
     print("Tracking started...")
 
@@ -182,7 +188,7 @@ def main():
                         
                         # initialize Kalman filter if new
                         if tid not in track_filters:
-                            track_filters[tid] = VehicleKalmanFilter(wx, wy)
+                            track_filters[tid] = VehicleKalmanFilter(wx, wy, current_time)
                         
                         # predict next state
                         track_filters[tid].predict(current_time)
@@ -201,14 +207,11 @@ def main():
                         if speed_kmh < 1.5: speed_kmh = 0.0
 
                         state_text = f"Pos:({smooth_x:.1f}, {smooth_y:.1f}) Vel:{speed_kmh:.0f}km/h"
-                        color = (0, 255, 0) # green for active tracking 
-                        
-                        # DEBUGGING turned off.
-                        # print(f"ID {tid} | {state_text}")
+                        color = (0, 255, 0) # green for active tracking
 
                         #  ground truth
                         smooth_pos = np.asarray([smooth_x, smooth_y])
-                        ground_truth_pos, min_dist = get_closest_carla_vehicle(smooth_pos, vehicles)
+                        ground_truth_pos, min_dist = util.get_closest_carla_vehicle(smooth_pos, vehicles)
                         ground_truth_text = f"CARLA: ({ground_truth_pos[0]:.1f}, {ground_truth_pos[1]:.1f}), Err: {min_dist:.2f}"
                         cv2.putText(arr, ground_truth_text, (sx1, sy2+20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
