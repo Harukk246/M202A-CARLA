@@ -126,7 +126,8 @@ def main():
             # Loop until we reach this waypoint
             while True:
                 world.tick()
-                agent.update_information(world)
+                if args.agent == "behavior":
+                    agent.update_information(world)
                 control = agent.run_step()
                 vehicle.apply_control(control)
 
