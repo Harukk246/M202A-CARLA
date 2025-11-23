@@ -68,7 +68,7 @@ def main():
         route_points.append(random.choice(outside_spawns))
 
         if args.write:
-            input(f"WARNING: You're about to overwrite route {args.file}. Press Enter to continue...")
+            input(f"WARNING: You're about to overwrite route {args.id}. Press Enter to continue...")
             with open(f"routes/{args.id}.txt", "w") as f:
                 for t in route_points:
                     loc = t.location
