@@ -29,6 +29,12 @@ def main():
         required=False,
         help="Path to file containing waypoints (x y z ...)"
     )
+    parser.add_argument(
+        "--traffic-lights",
+        action="store_true",
+        default=False,
+        help="Respect traffic lights"
+    )
     args = parser.parse_args()
 
     # -------------------------------------------
@@ -43,27 +49,6 @@ def main():
     # -----------------------------
     # Load route from file
     # -----------------------------
-    # route_waypoints = []
-
-    # with open(args.route, "r") as f:
-    #     lines = [line.split("#")[0].strip() for line in f if line.strip()]
-
-    # # Spawn transform from first line
-    # x, y, z, pitch, yaw, roll = map(float, lines[0].split())
-    # z += 1.0  # slightly above ground to avoid collision issues
-    # spawn_transform = carla.Transform(
-    #     location=carla.Location(x=x, y=y, z=z),
-    #     rotation=carla.Rotation(pitch=pitch, yaw=yaw, roll=roll)
-    # )
-
-    # # Remaining lines are route waypoints
-    # for line in lines[1:]:
-    #     x, y, z = map(float, line.split()[:3])
-    #     route_waypoints.append(carla.Location(x=x, y=y, z=z))
-
-    # print(f"Spawn transform: {spawn_transform}")
-    # print(f"Loaded {len(route_waypoints)} waypoints")
-
     route_points = []
     if not args.read:
         # three point route generation 
@@ -132,7 +117,7 @@ def main():
     # -----------------------------
     # Initialize the agent
     # -----------------------------
-    agent = BehaviorAgent(vehicle, ignore_traffic_light=True, behavior="normal")
+    agent = BehaviorAgent(vehicle, ignore_traffic_light=args.traffic_lights, behavior="normal")
    
     print("Starting route...")
 
