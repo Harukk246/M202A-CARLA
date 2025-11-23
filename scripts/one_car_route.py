@@ -12,13 +12,13 @@ def main():
     # -----------------------------
     parser = argparse.ArgumentParser(description="Scenario Parameters")
     parser.add_argument(
-        "--write",
+        "w", "--write",
         action="store_true",
         default=False,
         help="write the route to a file"
     )
     parser.add_argument(
-        "--read",
+        "-r", "--read",
         action="store_true",
         default=False,
         help="read the route from ID"
@@ -31,7 +31,7 @@ def main():
         help="ID of the route to read/write"
     )
     parser.add_argument(
-        "--traffic-lights",
+        "-t", "--traffic-lights",
         action="store_true",
         default=False,
         help="Respect traffic lights"
