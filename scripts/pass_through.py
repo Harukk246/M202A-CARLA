@@ -23,7 +23,7 @@ def main():
         help="Target speed for BasicAgent in km/h (only used if --agent basic)"
     )
     parser.add_argument(
-        "--waypoints_file",
+        "--route",
         type=str,
         required=True,
         help="Path to file containing waypoints (x y z ...)"
@@ -37,7 +37,7 @@ def main():
     client.set_timeout(5.0)
 
     world = client.get_world()
-    map = world.get_map()
+    w_map = world.get_map()
 
     # -------------------------------------------
     # 2. Spawn a vehicle
@@ -45,7 +45,7 @@ def main():
     blueprint_library = world.get_blueprint_library()
     vehicle_bp = blueprint_library.find("vehicle.toyota.prius")
 
-    spawn_points = map.get_spawn_points()
+    spawn_points = w_map.get_spawn_points()
     spawn_point = random.choice(spawn_points)
 
     print("Spawning hero vehicle...")
@@ -107,7 +107,7 @@ def main():
     # -----------------------------
     route_waypoints = []
 
-    with open(args.waypoints_file, "r") as f:
+    with open(args.route, "r") as f:
         for line in f:
             line = line.split("#")[0].strip()  # remove comments
             if not line:
