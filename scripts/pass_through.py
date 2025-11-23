@@ -117,7 +117,9 @@ def main():
                 continue
             x, y, z = map(float, parts[:3])
             loc = carla.Location(x=x, y=y, z=z)
-            route_waypoints.append(loc)
+            wp = w_map.get_waypoint(loc, project_to_road=True, lane_type=carla.LaneType.Driving)
+
+            route_waypoints.append(wp)
 
     print(f"Loaded {len(route_waypoints)} waypoints from {args.route}")
     print("Driving along route...")
