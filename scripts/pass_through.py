@@ -114,7 +114,7 @@ def main():
     # -------------------------------------------
     try:
         for wp in route_waypoints:
-            wp_loc = wp
+            wp_loc = wp.transform.location
             print(f"Next waypoint: x={wp_loc.x:.2f}, y={wp_loc.y:.2f}, z={wp_loc.z:.2f}")
 
             # Set the current waypoint as the destination
