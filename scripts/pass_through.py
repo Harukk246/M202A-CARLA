@@ -147,8 +147,9 @@ def main():
                     # Check if we are close enough to the current waypoint
                     if dist < 2.0:  # 2-meter tolerance
                         break
-                except IndexError: 
-                    print("agent ran out of waypoints, next waypoint")
+                except Exception as e: 
+                    print(e)
+                    print("agent error, next waypoint")
                     break
 
                 time.sleep(0.05)
