@@ -11,4 +11,4 @@ else
 fi
 
 export SDL_AUDIODRIVER=dummy
-${CARLA_ROOT}/CarlaUE4.sh -opengl -windowed -ResX=1800 -ResY=2400 -world-port=$PORT -benchmark -fps=20 -quality-level=Epic
+${CARLA_ROOT}/CarlaUE4.sh -opengl -windowed -ResX=1600 -ResY=1200 -world-port=$PORT -benchmark -fps=20 -quality-level=Epic
