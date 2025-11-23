@@ -10,6 +10,9 @@
 ./create_dev_cont.sh autocommit
 ```
 
+# WARNING
+Do not run the above command (in step 1) on Vamsi's desktop. Instead use `./run_cont.sh`.
+
 2. Setup and run the CARLA simulator:
 
 ```bash
