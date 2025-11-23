@@ -31,7 +31,7 @@ def main():
     args = parser.parse_args()
 
     # -------------------------------------------
-    # 1. Connect to CARLA
+    # Connect to CARLA
     # -------------------------------------------
     client = carla.Client("localhost", 2000)
     client.set_timeout(5.0)
@@ -39,17 +39,38 @@ def main():
     world = client.get_world()
     w_map = world.get_map()
 
+    # -----------------------------
+    # Load route from file
+    # -----------------------------
+    route_waypoints = []
+
+    with open(args.route, "r") as f:
+        lines = [line.split("#")[0].strip() for line in f if line.strip()]
+
+    # Spawn transform from first line
+    x, y, z, pitch, yaw, roll = map(float, lines[0].split())
+    spawn_transform = carla.Transform(
+        location=carla.Location(x=x, y=y, z=z),
+        rotation=carla.Rotation(pitch=pitch, yaw=yaw, roll=roll)
+    )
+
+    # Remaining lines are route waypoints
+    for line in lines[1:]:
+        x, y, z = map(float, line.split()[:3])
+        route_waypoints.append(carla.Location(x=x, y=y, z=z))
+
+    print(f"Spawn transform: {spawn_transform}")
+    print(f"Loaded {len(route_waypoints)} waypoints")
+
+
     # -------------------------------------------
-    # 2. Spawn a vehicle
+    # Spawn the vehicle
     # -------------------------------------------
     blueprint_library = world.get_blueprint_library()
     vehicle_bp = blueprint_library.find("vehicle.toyota.prius")
 
-    spawn_points = w_map.get_spawn_points()
-    spawn_point = random.choice(spawn_points)
-
     print("Spawning hero vehicle...")
-    vehicle = world.try_spawn_actor(vehicle_bp, spawn_point)
+    vehicle = world.try_spawn_actor(vehicle_bp, spawn_transform)
 
     if vehicle is None:
         print("Failed to spawn vehicle.")
@@ -60,7 +81,7 @@ def main():
     vehicle.set_autopilot(False)  # important! BehaviorAgent controls it manually
 
     # -----------------------------
-    # 3. Initialize the agent
+    # Initialize the agent
     # -----------------------------
     if args.agent == "behavior":
         from behavior_agent import BehaviorAgent
@@ -68,68 +89,15 @@ def main():
     elif args.agent == "basic":
         from basic_agent import BasicAgent
         agent = BasicAgent(vehicle, target_speed=args.speed)
-
-   # -------------------------------------------
-    # 4. Create a start and end waypoint from spawn points
-    # -------------------------------------------
-    # spawn_points = map.get_spawn_points()  # list of carla.Transform
-
-    # # Randomly pick start and end transforms (ensure they are not the same)
-    # start_transform = random.choice(spawn_points)
-    # end_transform = random.choice(spawn_points)
-    # while end_transform == start_transform:
-    #     end_transform = random.choice(spawn_points)
-
-    # # Convert transforms to waypoints on the road
-    # start_wp = map.get_waypoint(start_transform.location)
-    # end_wp = map.get_waypoint(end_transform.location)
-
-    # print(f"Start waypoint: x={start_wp.transform.location.x:.2f}, "
-    #     f"y={start_wp.transform.location.y:.2f}, "
-    #     f"z={start_wp.transform.location.z:.2f}")
-
-    # print(f"End waypoint: x={end_wp.transform.location.x:.2f}, "
-    #     f"y={end_wp.transform.location.y:.2f}, "
-    #     f"z={end_wp.transform.location.z:.2f}")
-
-    # # Store them as a simple route
-    # route_waypoints = [start_wp, end_wp]
-
-
-    # # Or you could manually define:
-    # # route_waypoints = [
-    # #     carla.Location(x=10, y=20, z=0),
-    # #     carla.Location(x=30, y=40, z=0)
-    # # ]
-
-    # -----------------------------
-    # Load waypoints from file
-    # -----------------------------
-    route_waypoints = []
-
-    with open(args.route, "r") as f:
-        for line in f:
-            line = line.split("#")[0].strip()  # remove comments
-            if not line:
-                continue
-            parts = line.split()
-            if len(parts) < 3:
-                continue
-            x, y, z = map(float, parts[:3])
-            loc = carla.Location(x=x, y=y, z=z)
-            wp = w_map.get_waypoint(loc, project_to_road=True, lane_type=carla.LaneType.Driving)
-
-            route_waypoints.append(wp)
-
-    print(f"Loaded {len(route_waypoints)} waypoints from {args.route}")
+   
     print("Driving along route...")
 
     # -------------------------------------------
-    # 6. Simulation loop
+    # Simulation loop
     # -------------------------------------------
     try:
         for wp in route_waypoints[1:]:
-            wp_loc = wp.transform.location
+            wp_loc = wp
             print(f"Next waypoint: x={wp_loc.x:.2f}, y={wp_loc.y:.2f}, z={wp_loc.z:.2f}")
 
             # Set the current waypoint as the destination
