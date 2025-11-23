@@ -2,10 +2,28 @@ import carla
 import time
 import random
 import sys
-
-from behavior_agent import BehaviorAgent  
+import argparse 
 
 def main():
+
+    # -----------------------------
+    # Parse command-line arguments
+    # -----------------------------
+    parser = argparse.ArgumentParser(description="CARLA Agent Selector")
+    parser.add_argument(
+        "--agent",
+        choices=["basic", "behavior"],
+        default="behavior",
+        help="Which agent to use: 'basic' for BasicAgent, 'behavior' for BehaviorAgent"
+    )
+    parser.add_argument(
+        "--speed",
+        type=float,
+        default=20.0,
+        help="Target speed for BasicAgent in km/h (only used if --agent basic)"
+    )
+    args = parser.parse_args()
+
     # -------------------------------------------
     # 1. Connect to CARLA
     # -------------------------------------------
@@ -35,14 +53,15 @@ def main():
 
     vehicle.set_autopilot(False)  # important! BehaviorAgent controls it manually
 
-    # -------------------------------------------
-    # 3. Create the BehaviorAgent
-    # -------------------------------------------
-    agent = BehaviorAgent(
-        vehicle,
-        ignore_traffic_light=False,
-        behavior="normal"  # options: cautious, normal, aggressive
-    )
+    # -----------------------------
+    # 3. Initialize the agent
+    # -----------------------------
+    if args.agent == "behavior":
+        from behavior_agent import BehaviorAgent
+        agent = BehaviorAgent(vehicle, ignore_traffic_light=False, behavior="normal")
+    elif args.agent == "basic":
+        from basic_agent import BasicAgent
+        agent = BasicAgent(vehicle, target_speed=args.speed)
 
    # -------------------------------------------
     # 4. Create a start and end waypoint from spawn points
