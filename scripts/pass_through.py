@@ -3,27 +3,30 @@ import time
 import random
 import sys
 import argparse 
+from behavior_agent import BehaviorAgent
 
 def main():
 
     # -----------------------------
     # Parse command-line arguments
     # -----------------------------
-    parser = argparse.ArgumentParser(description="CARLA Agent Selector")
+    parser = argparse.ArgumentParser(description="Scenario Parameters")
     parser.add_argument(
-        "--agent",
-        choices=["basic", "behavior"],
-        default="behavior",
-        help="Which agent to use: 'basic' for BasicAgent, 'behavior' for BehaviorAgent"
+        "--write",
+        type=bool,
+        action="store_true",
+        default=False,
+        help="write the route to a file"
     )
     parser.add_argument(
-        "--speed",
-        type=float,
-        default=20.0,
-        help="Target speed for BasicAgent in km/h (only used if --agent basic)"
+        "--read",
+        type=bool,
+        action="store_true",
+        default=False,
+        help="read the route from a file"
     )
     parser.add_argument(
-        "--route",
+        "--file",
         type=str,
         required=False,
         help="Path to file containing waypoints (x y z ...)"
@@ -63,22 +66,53 @@ def main():
     # print(f"Spawn transform: {spawn_transform}")
     # print(f"Loaded {len(route_waypoints)} waypoints")
 
+    route_points = []
+    if not args.read:
+        # three point route generation 
+        spawns = w_map.get_spawn_points()
+        # sort spawns into inside/outside highway
+        inside_spawns = []
+        outside_spawns = []
+        for sp in spawns:
+            if -300 <= sp.location.x <= 180 and -180 <= sp.location.y <= 180:
+                inside_spawns.append(sp)
+            else:
+                outside_spawns.append(sp)
+        # Pick points: spawn/outside, middle/inside, destination/outside
+        route_points.append(random.choice(outside_spawns))
+        route_points.append(random.choice(inside_spawns))
+        route_points.append(random.choice(outside_spawns))
 
-    # three point route generation 
-    spawns = w_map.get_spawn_points()
+        if args.write:
+            with open(args.file, "w") as f:
+                for t in route_points:
+                    loc = t.location
+                    rot = t.rotation
+                    f.write(f"{loc.x} {loc.y} {loc.z} {rot.pitch} {rot.yaw} {rot.roll}\n")
+    else:
+        with open(args.file, "r") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) != 6:
+                    continue
+                x, y, z, pitch, yaw, roll = map(float, parts)
+                transform = carla.Transform(
+                    carla.Location(x=x, y=y, z=z),
+                    carla.Rotation(pitch=pitch, yaw=yaw, roll=roll)
+                )
+                route_points.append(transform)
 
-    # Pick points: spawn/outside, middle/inside, destination/outside
-    spawn_point = random.choice([sp for sp in spawns if not (-300 <= sp.location.x <= 180 and -180 <= sp.location.y <= 180)])
-    middle_point = random.choice([sp for sp in spawns if -300 <= sp.location.x <= 180 and -180 <= sp.location.y <= 180])
-    destination = random.choice([sp for sp in spawns if not (-300 <= sp.location.x <= 180 and -180 <= sp.location.y <= 180)])
+        print(f"Loaded {len(route_points)} points")
 
-    print(f"Spawn: {spawn_point.location}, Middle: {middle_point.location}, Destination: {destination.location}")
 
-    # Convert middle and destination to waypoints
-    middle_wp = w_map.get_waypoint(middle_point.location, project_to_road=True, lane_type=carla.LaneType.Driving)
-    destination_wp = w_map.get_waypoint(destination.location, project_to_road=True, lane_type=carla.LaneType.Driving)
+    print("spawn at:", route_points[0].location)
 
-    route_waypoints = [middle_wp, destination_wp]
+    # Convert transforms (after spawnpoint) to waypoints
+    route_waypoints = [] 
+    for t in route_points:
+        wp = w_map.get_waypoint(t.location, project_to_road=True, lane_type=carla.LaneType.Driving)
+        route_waypoints.append(wp)
+        print(f"Waypoint: x={wp.transform.location.x:.2f}, y={wp.transform.location.y:.2f}, z={wp.transform.location.z:.2f}")
 
     # -------------------------------------------
     # Spawn the vehicle
@@ -87,7 +121,7 @@ def main():
     vehicle_bp = blueprint_library.find("vehicle.toyota.prius")
 
     print("Spawning hero vehicle...")
-    vehicle = world.try_spawn_actor(vehicle_bp, spawn_point)
+    vehicle = world.try_spawn_actor(vehicle_bp, route_points[0])
 
     if vehicle is None:
         print("Failed to spawn vehicle.")
@@ -100,14 +134,9 @@ def main():
     # -----------------------------
     # Initialize the agent
     # -----------------------------
-    if args.agent == "behavior":
-        from behavior_agent import BehaviorAgent
-        agent = BehaviorAgent(vehicle, ignore_traffic_light=True, behavior="normal")
-    elif args.agent == "basic":
-        from basic_agent import BasicAgent
-        agent = BasicAgent(vehicle, target_speed=args.speed)
+    agent = BehaviorAgent(vehicle, ignore_traffic_light=True, behavior="normal")
    
-    print("Driving along route...")
+    print("Starting route...")
 
     # -------------------------------------------
     # Simulation loop
@@ -118,10 +147,7 @@ def main():
             print(f"Next waypoint: x={wp_loc.x:.2f}, y={wp_loc.y:.2f}, z={wp_loc.z:.2f}")
 
             # Set the current waypoint as the destination
-            if(args.agent == "basic"):
-                agent.set_destination([wp_loc.x, wp_loc.y, wp_loc.z])
-            else: 
-                agent.set_destination(vehicle.get_location(), wp_loc, clean=True)
+            agent.set_destination(vehicle.get_location(), wp_loc, clean=True)
 
             tick_counter = 0
             print_interval = 20  # print every 20 ticks (~1 second if tick = 0.05s)
@@ -130,8 +156,7 @@ def main():
             while True:
                 try: 
                     world.tick()
-                    if args.agent == "behavior":
-                        agent.update_information(world)
+                    agent.update_information(world)
                     control = agent.run_step()
                     vehicle.apply_control(control)
 
@@ -155,46 +180,6 @@ def main():
                 time.sleep(0.05)
 
         print("Reached destination.")
-
-    # # Assume wp_dest is a carla.Location for the destination
-    # try:
-    #     dest_loc = destination_wp.transform.location
-    #     print(f"Driving to destination: x={dest_loc.x:.2f}, y={dest_loc.y:.2f}, z={dest_loc.z:.2f}")
-
-    #     # set destination
-    #     if(args.agent == "basic"):
-    #         agent.set_destination([dest_loc.x, dest_loc.y, dest_loc.z])
-    #     else: 
-    #         agent.set_destination(vehicle.get_location(), dest_loc, clean=True)
-
-    #     tick_counter = 0
-    #     print_interval = 20  # print every 20 ticks (~1 second if tick=0.05s)
-
-    #     while True:
-    #         world.tick()
-
-    #         if args.agent == "behavior":
-    #             agent.update_information(world)
-
-    #         control = agent.run_step()
-    #         vehicle.apply_control(control)
-
-    #         # Compute distance to destination
-    #         dist = vehicle.get_location().distance(dest_loc)
-
-    #         # Print distance periodically
-    #         if tick_counter % print_interval == 0:
-    #             print(f"Distance to destination: {dist:.2f} meters")
-
-    #         tick_counter += 1
-
-    #         # Stop when close enough
-    #         if dist < 2.0:  # 2-meter tolerance
-    #             print("Reached destination.")
-    #             break
-
-    #         time.sleep(0.05)
-    
         
     finally:
         print("Destroying actors...")
@@ -202,7 +187,6 @@ def main():
 
     print("Done.")
 
-# Entry point --------------------------
 if __name__ == "__main__":
     try:
         main()
