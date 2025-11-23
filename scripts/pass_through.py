@@ -102,7 +102,7 @@ def main():
     # -----------------------------
     if args.agent == "behavior":
         from behavior_agent import BehaviorAgent
-        agent = BehaviorAgent(vehicle, ignore_traffic_light=False, behavior="normal")
+        agent = BehaviorAgent(vehicle, ignore_traffic_light=True, behavior="normal")
     elif args.agent == "basic":
         from basic_agent import BasicAgent
         agent = BasicAgent(vehicle, target_speed=args.speed)
