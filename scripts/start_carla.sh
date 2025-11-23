@@ -1,5 +1,6 @@
 #!/bin/bash
 if [ -z "$CARLA_ENV_LOADED" ]; then
+    echo "setting up environment"
     export CARLA_ROOT=$HOME/workspace/carla
     export PYLOT_HOME=$HOME/workspace/pylot
     export SCENARIO_RUNNER_ROOT=$HOME/workspace/scenario_runner
