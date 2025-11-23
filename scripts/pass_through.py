@@ -119,7 +119,7 @@ def main():
             loc = carla.Location(x=x, y=y, z=z)
             route_waypoints.append(loc)
 
-    print(f"Loaded {len(route_waypoints)} waypoints from {args.waypoints_file}")
+    print(f"Loaded {len(route_waypoints)} waypoints from {args.route}")
     print("Driving along route...")
 
     # -------------------------------------------
