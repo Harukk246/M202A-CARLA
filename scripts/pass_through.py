@@ -153,7 +153,14 @@ def main():
 
     # Assume wp_dest is a carla.Location for the destination
     try:
-        print(f"Driving to destination: x={destination_wp.x:.2f}, y={destination_wp.y:.2f}, z={destination_wp.z:.2f}")
+        dest_loc = destination_wp.transform.location
+        print(f"Driving to destination: x={dest_loc.x:.2f}, y={dest_loc.y:.2f}, z={dest_loc.z:.2f}")
+
+        # set destination
+        if(args.agent == "basic"):
+            agent.set_destination([dest_loc.x, dest_loc.y, dest_loc.z])
+        else: 
+            agent.set_destination(vehicle.get_location(), dest_loc, clean=True)
 
         tick_counter = 0
         print_interval = 20  # print every 20 ticks (~1 second if tick=0.05s)
@@ -168,7 +175,7 @@ def main():
             vehicle.apply_control(control)
 
             # Compute distance to destination
-            dist = vehicle.get_location().distance(destination_wp)
+            dist = vehicle.get_location().distance(dest_loc)
 
             # Print distance periodically
             if tick_counter % print_interval == 0:
