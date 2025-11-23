@@ -41,12 +41,13 @@ class PassThroughScenario(BasicScenario):
         spawn_points = self.map.get_spawn_points()
         
         # Default configuration
-        model = 'vehicle.tesla.model3'
+        model = 'vehicle.tesla.model3' 
         color = None
         start_transform = spawn_points[0]
 
         # 1. Parse XML Configuration
-        if config.ego_vehicles and len(config.ego_vehicles) > 0:
+        # We check 'if config' first because run_scenario.py passes None
+        if config and hasattr(config, 'ego_vehicles') and config.ego_vehicles and len(config.ego_vehicles) > 0:
             ego_config = config.ego_vehicles[0]
             
             # Use model and color from XML
@@ -54,13 +55,13 @@ class PassThroughScenario(BasicScenario):
             color = ego_config.color
             
             # Check if XML has specific coordinates. 
-            # If x=0 and y=0, it likely means no coords were provided in XML.
-            # In that case, we keep the map's default spawn_points[0].
             if abs(ego_config.transform.location.x) > 0.1 or abs(ego_config.transform.location.y) > 0.1:
                 start_transform = ego_config.transform
                 print(f"[Scenario] Using XML coordinates: {start_transform.location}")
             else:
                 print(f"[Scenario] XML coordinates empty/zero. Overwriting with map spawn point.")
+        else:
+            print("[Scenario] No XML config present (or running standalone). Using default spawn.")
 
         # 2. Set Destination (Arbitrary for this demo)
         destination_transform = spawn_points[10] if len(spawn_points) > 10 else spawn_points[-1]
@@ -74,7 +75,13 @@ class PassThroughScenario(BasicScenario):
         self.other_actors.append(self.ego_vehicle)
 
         # 4. Calculate Route
-        grp = GlobalRoutePlanner(self.map, 2.0)
+        # Using CARLA 0.9.10 API explicitly (GlobalRoutePlannerDAO)
+        print("[Scenario] Using CARLA 0.9.10 GlobalRoutePlannerDAO.")
+        from agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
+        dao = GlobalRoutePlannerDAO(self.map, 2.0)
+        grp = GlobalRoutePlanner(dao)
+        grp.setup()
+        
         self.route_plan = grp.trace_route(
             start_transform.location, 
             destination_transform.location
