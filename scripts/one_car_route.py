@@ -12,7 +12,7 @@ def main():
     # -----------------------------
     parser = argparse.ArgumentParser(description="Scenario Parameters")
     parser.add_argument(
-        "w", "--write",
+        "-w", "--write",
         action="store_true",
         default=False,
         help="write the route to a file"
