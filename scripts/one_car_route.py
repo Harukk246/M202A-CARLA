@@ -119,7 +119,8 @@ def main():
     # -----------------------------
     # Initialize the agent
     # -----------------------------
-    agent = BehaviorAgent(vehicle, ignore_traffic_light=args.traffic_lights, behavior="normal")
+    ignore_traffic_light = not args.traffic_lights
+    agent = BehaviorAgent(vehicle, ignore_traffic_light=ignore_traffic_light, behavior="normal")
    
     print("Starting route...")
 
