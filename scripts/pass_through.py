@@ -115,7 +115,10 @@ def main():
             print(f"Next waypoint: x={wp_loc.x:.2f}, y={wp_loc.y:.2f}, z={wp_loc.z:.2f}")
 
             # Set the current waypoint as the destination
-            agent.set_destination(vehicle.get_location(), wp_loc, clean=True)
+            if(args.agent == "basic"):
+                agent.set_destination(vehicle.get_location(), wp_loc)
+            else: 
+                agent.set_destination(vehicle.get_location(), wp_loc, clean=True)
 
             tick_counter = 0
             print_interval = 20  # print every 20 ticks (~1 second if tick = 0.05s)
