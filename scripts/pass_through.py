@@ -13,14 +13,12 @@ def main():
     parser = argparse.ArgumentParser(description="Scenario Parameters")
     parser.add_argument(
         "--write",
-        type=bool,
         action="store_true",
         default=False,
         help="write the route to a file"
     )
     parser.add_argument(
         "--read",
-        type=bool,
         action="store_true",
         default=False,
         help="read the route from a file"
