@@ -17,6 +17,11 @@ cd /home/erdos/workspace/M202A-CARLA
 . ./start_carla.sh
 ```
 
+2. Load map
+```bash
+python load_town5.py
+```
+
 Run a one-car scenario
 ```bash
 python one_car_route.py
