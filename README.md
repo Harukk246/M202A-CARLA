@@ -29,3 +29,17 @@ Run with the `--help` flag for more options.
 ```
 ## Notes
 - `tmux` may be useful for opening multiple windows in the docker container. 
+
+# Camera Locations
+
+![map](./map.png)
+
+```
+Visible:
+
+
+
+Encrypted:
+1 = 
+
+```
