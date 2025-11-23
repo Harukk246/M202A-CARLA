@@ -3,7 +3,7 @@ import time
 import random
 import sys
 
-from carla.agents.navigation.behavior_agent import BehaviorAgent  
+from behavior_agent import BehaviorAgent  
 
 def main():
     # -------------------------------------------
