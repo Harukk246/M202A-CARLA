@@ -68,3 +68,36 @@ Encrypted:
 18 = Position: x=35.000, y=142.500, z=7.500 | Rotation: pitch=-28.00°, yaw=0.00°, roll=0.00°
 
 ```
+
+## Start Cameras
+
+```bash
+python spawn_world5_cameras.py
+```
+
+This script will start the cameras at the hardocded locations above and start streaming via ffmpeg.
+The port is defined as `port = 5000 + camera_id`
+
+### To View the Stream
+
+```bash
+ffplay -fflags nobuffer -flags low_delay -framedrop -strict experimental -probesize 32 -analyzeduration 0 udp://127.0.0.1:5001?pkt_size=1316
+```
+
+Where port `5001` is derived according to the formula above.
+
+## Warning
+
+If you see the following error:
+
+```bash
+ffmpeg for camera 18 exited unexpectedly: [hevc_nvenc @ 0x64daa18f0900] OpenEncodeSessionEx failed: incompatible client key (21): (no details)
+[hevc_nvenc @ 0x64daa18f0900] No capable devices found
+Error initializing output stream 0:0 -- Error while opening encoder for output stream #0:0 - maybe incorrect parameters such as bit_rate, rate, width or height
+
+Stopping HEVC encoder for camera 18...
+```
+
+This is a hardware limitation. NVENC supports a limited number of concurrent encoding sessions (often 2–3 on consumer GPUs, more on professional/server GPUs). After cameras 1–8, the remaining sessions fail with "No capable devices found". You can disable some cameras by commenting out lines in `CAMERA_CONFIGS`.
+
+If we need more than ~9 cameras then we can fallback to software encoding instead of hardware acceleration. The issue is that the SW encoder might be slow and might also be resource heavy.
