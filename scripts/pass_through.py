@@ -44,23 +44,32 @@ def main():
         behavior="normal"  # options: cautious, normal, aggressive
     )
 
+   # -------------------------------------------
+    # 4. Create a start and end waypoint from spawn points
     # -------------------------------------------
-    # 4. Create a list of waypoint locations
-    # -------------------------------------------
-    # You can create waypoints from the map, for example:
-    route_waypoints = []
-    start_wp = map.get_waypoint(vehicle.get_location())
+    spawn_points = map.get_spawn_points()  # list of carla.Transform
 
-    # Generate a simple forward route of N waypoints
-    NEXT = 60     # number of waypoints to follow
-    DIST = 4.0    # meters between waypoints
+    # Randomly pick start and end transforms (ensure they are not the same)
+    start_transform = random.choice(spawn_points)
+    end_transform = random.choice(spawn_points)
+    while end_transform == start_transform:
+        end_transform = random.choice(spawn_points)
 
-    current_wp = start_wp
-    for _ in range(NEXT):
-        next_wps = current_wp.next(DIST)
-        if next_wps:
-            current_wp = next_wps[0]
-            route_waypoints.append(current_wp.transform.location)
+    # Convert transforms to waypoints on the road
+    start_wp = map.get_waypoint(start_transform.location)
+    end_wp = map.get_waypoint(end_transform.location)
+
+    print(f"Start waypoint: x={start_wp.transform.location.x:.2f}, "
+        f"y={start_wp.transform.location.y:.2f}, "
+        f"z={start_wp.transform.location.z:.2f}")
+
+    print(f"End waypoint: x={end_wp.transform.location.x:.2f}, "
+        f"y={end_wp.transform.location.y:.2f}, "
+        f"z={end_wp.transform.location.z:.2f}")
+
+    # Store them as a simple route
+    route_waypoints = [start_wp, end_wp]
+
 
     # Or you could manually define:
     # route_waypoints = [
@@ -84,9 +93,10 @@ def main():
     # -------------------------------------------
     try:
         for wp in route_waypoints:
-            print(f"Next waypoint: x={wp.x:.2f}, y={wp.y:.2f}, z={wp.z:.2f}")
+            wp_loc = wp.transform.location
+            print(f"Next waypoint: x={wp_loc.x:.2f}, y={wp_loc.y:.2f}, z={wp_loc.z:.2f}")
             # Set the current waypoint as the destination
-            agent.set_destination(vehicle.get_location(), wp, clean=True)
+            agent.set_destination(vehicle.get_location(), wp_loc, clean=True)
             
             # Loop until we reach this waypoint
             while True:
@@ -96,7 +106,7 @@ def main():
                 vehicle.apply_control(control)
 
                 # Check if we are close enough to the current waypoint
-                if vehicle.get_location().distance(wp) < 2.0:  # 2-meter tolerance
+                if vehicle.get_location().distance(wp_loc) < 2.0:  # 2-meter tolerance
                     break
 
                 time.sleep(0.05)
