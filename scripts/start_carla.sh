@@ -17,7 +17,13 @@ if [ -z "$CARLA_ENV_LOADED" ]; then
     export CARLA_ENV_LOADED=1
 fi
 
-# Run Carla simulator, passes all arguments to run_simulator.sh
-/home/erdos/workspace/pylot/scripts/run_simulator.sh "$@" &
-sleep 5
+# Check if Carla is already running
+if pgrep -f "CarlaUE4" > /dev/null; then
+    echo "CARLA is already running. Skipping simulator launch."
+else
+    echo "Starting CARLA simulator..."
+    ./run_simulator.sh "$@" &
+    sleep 5
+fi
+
 python load_town5.py 
