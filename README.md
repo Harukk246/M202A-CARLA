@@ -86,6 +86,14 @@ ffplay -fflags nobuffer -flags low_delay -framedrop -strict experimental -probes
 
 Where port `5001` is derived according to the formula above.
 
+### To run YOLO model on the stream. Change the hardcoded camera ID as needed.
+
+```bash
+python yolo_world5_camera.py
+```
+
+This script needs to be debugged, the FPS is way too low. Maybe it is a HW limitation on my end.
+
 ## Warning
 
 If you see the following error:
