@@ -49,6 +49,7 @@ def main():
 
     # Spawn transform from first line
     x, y, z, pitch, yaw, roll = map(float, lines[0].split())
+    z += 1.0  # slightly above ground to avoid collision issues
     spawn_transform = carla.Transform(
         location=carla.Location(x=x, y=y, z=z),
         rotation=carla.Rotation(pitch=pitch, yaw=yaw, roll=roll)
