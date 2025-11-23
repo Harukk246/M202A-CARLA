@@ -85,19 +85,22 @@ def main():
     # else:
     #     print("Route is too short.")
     #     return
-    destination = route_waypoints[-1]
     print("Driving along route...")
 
     # -------------------------------------------
     # 6. Simulation loop
     # -------------------------------------------
     try:
-        for wp in route_waypoints:
+        for wp in route_waypoints[1:]:
             wp_loc = wp.transform.location
             print(f"Next waypoint: x={wp_loc.x:.2f}, y={wp_loc.y:.2f}, z={wp_loc.z:.2f}")
+
             # Set the current waypoint as the destination
             agent.set_destination(vehicle.get_location(), wp_loc, clean=True)
-            
+
+            tick_counter = 0
+            print_interval = 20  # print every 20 ticks (~1 second if tick = 0.05s)
+
             # Loop until we reach this waypoint
             while True:
                 world.tick()
@@ -105,12 +108,23 @@ def main():
                 control = agent.run_step()
                 vehicle.apply_control(control)
 
+                # Compute distance to waypoint
+                dist = vehicle.get_location().distance(wp_loc)
+
+                # Only print every print_interval ticks
+                if tick_counter % print_interval == 0:
+                    print(f"Distance to waypoint: {dist:.2f} meters")
+
+                tick_counter += 1
+
                 # Check if we are close enough to the current waypoint
-                if vehicle.get_location().distance(wp_loc) < 2.0:  # 2-meter tolerance
+                if dist < 2.0:  # 2-meter tolerance
                     break
 
                 time.sleep(0.05)
+
         print("Reached destination.")
+
 
     finally:
         print("Destroying actors...")
