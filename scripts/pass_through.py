@@ -25,7 +25,7 @@ def main():
     parser.add_argument(
         "--route",
         type=str,
-        required=True,
+        required=False,
         help="Path to file containing waypoints (x y z ...)"
     )
     args = parser.parse_args()
