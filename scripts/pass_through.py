@@ -64,21 +64,21 @@ def main():
     # print(f"Loaded {len(route_waypoints)} waypoints")
 
 
-    # get random spawn and destination point
+    # three point route generation 
     spawns = w_map.get_spawn_points()
-    filtered_spawns = [
-    sp for sp in spawns
-        if not (-300 <= sp.location.x <= 180 and -180 <= sp.location.y <= 180)
-    ]
-    spawn_point = random.choice(filtered_spawns)
-    destination = random.choice(filtered_spawns)
-    
-    print(f"Spawn point: {spawn_point.location}, Destination: {destination.location}")
-    destination_wp = w_map.get_waypoint(
-        destination.location,
-        project_to_road=True,                 # snap to nearest drivable lane
-        lane_type=carla.LaneType.Driving      # only consider driving lanes
-    )
+
+    # Pick points: spawn/outside, middle/inside, destination/outside
+    spawn_point = random.choice([sp for sp in spawns if not (-300 <= sp.location.x <= 180 and -180 <= sp.location.y <= 180)])
+    middle_point = random.choice([sp for sp in spawns if -300 <= sp.location.x <= 180 and -180 <= sp.location.y <= 180])
+    destination = random.choice([sp for sp in spawns if not (-300 <= sp.location.x <= 180 and -180 <= sp.location.y <= 180)])
+
+    print(f"Spawn: {spawn_point.location}, Middle: {middle_point.location}, Destination: {destination.location}")
+
+    # Convert middle and destination to waypoints
+    middle_wp = w_map.get_waypoint(middle_point.location, project_to_road=True, lane_type=carla.LaneType.Driving)
+    destination_wp = w_map.get_waypoint(destination.location, project_to_road=True, lane_type=carla.LaneType.Driving)
+
+    route_waypoints = [middle_wp, destination_wp]
 
     # -------------------------------------------
     # Spawn the vehicle
@@ -112,84 +112,89 @@ def main():
     # -------------------------------------------
     # Simulation loop
     # -------------------------------------------
-    # try:
-    #     for wp in route_waypoints[1:]:
-    #         wp_loc = wp
-    #         print(f"Next waypoint: x={wp_loc.x:.2f}, y={wp_loc.y:.2f}, z={wp_loc.z:.2f}")
-
-    #         # Set the current waypoint as the destination
-    #         if(args.agent == "basic"):
-    #             agent.set_destination([wp_loc.x, wp_loc.y, wp_loc.z])
-    #         else: 
-    #             agent.set_destination(vehicle.get_location(), wp_loc, clean=True)
-
-    #         tick_counter = 0
-    #         print_interval = 20  # print every 20 ticks (~1 second if tick = 0.05s)
-
-    #         # Loop until we reach this waypoint
-    #         while True:
-    #             world.tick()
-    #             if args.agent == "behavior":
-    #                 agent.update_information(world)
-    #             control = agent.run_step()
-    #             vehicle.apply_control(control)
-
-    #             # Compute distance to waypoint
-    #             dist = vehicle.get_location().distance(wp_loc)
-
-    #             # Only print every print_interval ticks
-    #             if tick_counter % print_interval == 0:
-    #                 print(f"Distance to waypoint: {dist:.2f} meters")
-
-    #             tick_counter += 1
-
-    #             # Check if we are close enough to the current waypoint
-    #             if dist < 2.0:  # 2-meter tolerance
-    #                 break
-
-    #             time.sleep(0.05)
-
-    #     print("Reached destination.")
-
-    # Assume wp_dest is a carla.Location for the destination
     try:
-        dest_loc = destination_wp.transform.location
-        print(f"Driving to destination: x={dest_loc.x:.2f}, y={dest_loc.y:.2f}, z={dest_loc.z:.2f}")
+        for wp in route_waypoints:
+            wp_loc = wp
+            print(f"Next waypoint: x={wp_loc.x:.2f}, y={wp_loc.y:.2f}, z={wp_loc.z:.2f}")
 
-        # set destination
-        if(args.agent == "basic"):
-            agent.set_destination([dest_loc.x, dest_loc.y, dest_loc.z])
-        else: 
-            agent.set_destination(vehicle.get_location(), dest_loc, clean=True)
+            # Set the current waypoint as the destination
+            if(args.agent == "basic"):
+                agent.set_destination([wp_loc.x, wp_loc.y, wp_loc.z])
+            else: 
+                agent.set_destination(vehicle.get_location(), wp_loc, clean=True)
 
-        tick_counter = 0
-        print_interval = 20  # print every 20 ticks (~1 second if tick=0.05s)
+            tick_counter = 0
+            print_interval = 20  # print every 20 ticks (~1 second if tick = 0.05s)
 
-        while True:
-            world.tick()
+            # Loop until we reach this waypoint
+            while True:
+                try: 
+                    world.tick()
+                    if args.agent == "behavior":
+                        agent.update_information(world)
+                    control = agent.run_step()
+                    vehicle.apply_control(control)
 
-            if args.agent == "behavior":
-                agent.update_information(world)
+                    # Compute distance to waypoint
+                    dist = vehicle.get_location().distance(wp_loc)
 
-            control = agent.run_step()
-            vehicle.apply_control(control)
+                    # Only print every print_interval ticks
+                    if tick_counter % print_interval == 0:
+                        print(f"Distance to waypoint: {dist:.2f} meters")
 
-            # Compute distance to destination
-            dist = vehicle.get_location().distance(dest_loc)
+                    tick_counter += 1
 
-            # Print distance periodically
-            if tick_counter % print_interval == 0:
-                print(f"Distance to destination: {dist:.2f} meters")
+                    # Check if we are close enough to the current waypoint
+                    if dist < 2.0:  # 2-meter tolerance
+                        break
+                except IndexError: 
+                    print("agent ran out of waypoints, next waypoint")
+                    break
 
-            tick_counter += 1
+                time.sleep(0.05)
 
-            # Stop when close enough
-            if dist < 2.0:  # 2-meter tolerance
-                print("Reached destination.")
-                break
+        print("Reached destination.")
 
-            time.sleep(0.05)
+    # # Assume wp_dest is a carla.Location for the destination
+    # try:
+    #     dest_loc = destination_wp.transform.location
+    #     print(f"Driving to destination: x={dest_loc.x:.2f}, y={dest_loc.y:.2f}, z={dest_loc.z:.2f}")
 
+    #     # set destination
+    #     if(args.agent == "basic"):
+    #         agent.set_destination([dest_loc.x, dest_loc.y, dest_loc.z])
+    #     else: 
+    #         agent.set_destination(vehicle.get_location(), dest_loc, clean=True)
+
+    #     tick_counter = 0
+    #     print_interval = 20  # print every 20 ticks (~1 second if tick=0.05s)
+
+    #     while True:
+    #         world.tick()
+
+    #         if args.agent == "behavior":
+    #             agent.update_information(world)
+
+    #         control = agent.run_step()
+    #         vehicle.apply_control(control)
+
+    #         # Compute distance to destination
+    #         dist = vehicle.get_location().distance(dest_loc)
+
+    #         # Print distance periodically
+    #         if tick_counter % print_interval == 0:
+    #             print(f"Distance to destination: {dist:.2f} meters")
+
+    #         tick_counter += 1
+
+    #         # Stop when close enough
+    #         if dist < 2.0:  # 2-meter tolerance
+    #             print("Reached destination.")
+    #             break
+
+    #         time.sleep(0.05)
+    
+        
     finally:
         print("Destroying actors...")
         vehicle.destroy()
