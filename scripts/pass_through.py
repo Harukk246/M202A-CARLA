@@ -116,7 +116,7 @@ def main():
 
             # Set the current waypoint as the destination
             if(args.agent == "basic"):
-                agent.set_destination(vehicle.get_location(), wp_loc)
+                agent.set_destination(wp_loc)
             else: 
                 agent.set_destination(vehicle.get_location(), wp_loc, clean=True)
 
