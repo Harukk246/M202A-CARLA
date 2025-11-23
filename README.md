@@ -10,26 +10,22 @@
 ./create_dev_cont.sh autocommit
 ```
 
-2. Setup environment for CADET and go to main scripts folder:
+2. Setup and run the CARLA simulator:
 
 ```bash
-cd ~/workspace
-. ./setup_env.sh
-cd M202A-CARLA/scripts
+cd /home/erdos/workspace/M202A-CARLA
+. ./start_carla.sh
 ```
 
-Run the simulator
+Run a one-car scenario
 ```bash
-./start_carla.sh
+python one_car_route.py
 ```
+Run with the `--help` flag for more options. 
 
-Start the town
+3. Run the cleanup script to stop CARLA: 
 ```bash
-python minimal_town5.py
+./cleanup.sh
 ```
-
-Run car scripts, camera scripts in the same way. 
-
 ## Notes
-
 - `tmux` may be useful for opening multiple windows in the docker container. 
