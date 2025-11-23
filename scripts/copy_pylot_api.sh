@@ -2,6 +2,8 @@
 
 mkdir /home/ubuntu/PYLOT_API
 
+pip install networkx==2.2
+
 docker cp slow-pylot:/home/erdos/workspace/pylot/dependencies/CARLA_0.9.10.1/carla /home/ubuntu/PYLOT_API
 
 echo "add the following to .bashrc"
