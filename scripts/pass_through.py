@@ -71,11 +71,11 @@ def main():
     # -------------------------------------------
     # 5. Give the route to the BehaviorAgent
     # -------------------------------------------
-    if len(route_waypoints) > 1:
-        agent.set_destination(route_waypoints[0], route_waypoints[-1], clean=True)
-    else:
-        print("Route is too short.")
-        return
+    # if len(route_waypoints) > 1:
+    #     agent.set_destination(route_waypoints[0], route_waypoints[-1], clean=True)
+    # else:
+    #     print("Route is too short.")
+    #     return
     destination = route_waypoints[-1]
     print("Driving along route...")
 
@@ -83,22 +83,24 @@ def main():
     # 6. Simulation loop
     # -------------------------------------------
     try:
-        while True:
-            world.tick()
+        for wp in route_waypoints:
+            print(f"Next waypoint: x={wp.x:.2f}, y={wp.y:.2f}, z={wp.z:.2f}")
+            # Set the current waypoint as the destination
+            agent.set_destination(vehicle.get_location(), wp, clean=True)
+            
+            # Loop until we reach this waypoint
+            while True:
+                world.tick()
+                agent.update_information(world)
+                control = agent.run_step()
+                vehicle.apply_control(control)
 
-            # BehaviorAgent requires update_information() each tick
-            agent.update_information(world)
+                # Check if we are close enough to the current waypoint
+                if vehicle.get_location().distance(wp) < 2.0:  # 2-meter tolerance
+                    break
 
-            # Compute next control command
-            control = agent.run_step()
-            vehicle.apply_control(control)
-
-            # If close to destination, re-route or stop
-            if vehicle.get_location().distance(destination) < 2.0:
-                print("Reached destination.")
-                break
-
-            time.sleep(0.05)
+                time.sleep(0.05)
+        print("Reached destination.")
 
     finally:
         print("Destroying actors...")
