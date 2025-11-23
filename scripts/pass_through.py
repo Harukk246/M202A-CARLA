@@ -31,6 +31,8 @@ def main():
         print("Failed to spawn vehicle.")
         return
 
+    world.player = vehicle 
+
     vehicle.set_autopilot(False)  # important! BehaviorAgent controls it manually
 
     # -------------------------------------------
