@@ -21,13 +21,14 @@ def main():
         "--read",
         action="store_true",
         default=False,
-        help="read the route from a file"
+        help="read the route from ID"
     )
     parser.add_argument(
-        "--file",
-        type=str,
+        "-i", "--id",
+        type=int,
         required=False,
-        help="Path to file containing waypoints (x y z ...)"
+        default=1,
+        help="ID of the route to read/write"
     )
     parser.add_argument(
         "--traffic-lights",
@@ -67,13 +68,14 @@ def main():
         route_points.append(random.choice(outside_spawns))
 
         if args.write:
-            with open(args.file, "w") as f:
+            input(f"WARNING: You're about to overwrite route {args.file}. Press Enter to continue...")
+            with open(f"routes/{args.id}.txt", "w") as f:
                 for t in route_points:
                     loc = t.location
                     rot = t.rotation
                     f.write(f"{loc.x} {loc.y} {loc.z} {rot.pitch} {rot.yaw} {rot.roll}\n")
     else:
-        with open(args.file, "r") as f:
+        with open(f"routes/{args.id}.txt", "r") as f:
             for line in f:
                 parts = line.split()
                 if len(parts) != 6:
