@@ -3,6 +3,7 @@ import time
 import random
 import sys
 import argparse 
+import os
 from behavior_agent import BehaviorAgent
 
 def main():
@@ -68,7 +69,9 @@ def main():
         route_points.append(random.choice(outside_spawns))
 
         if args.write:
-            input(f"WARNING: You're about to overwrite route {args.id}. Press Enter to continue...")
+            # if file exists, warn user
+            if os.path.exists(f"routes/{args.id}.txt"):
+                input(f"WARNING: You're about to overwrite route {args.id}. Press Enter to continue...")
             with open(f"routes/{args.id}.txt", "w") as f:
                 for t in route_points:
                     loc = t.location
