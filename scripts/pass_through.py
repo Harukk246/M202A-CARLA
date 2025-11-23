@@ -76,7 +76,7 @@ def main():
     else:
         print("Route is too short.")
         return
-
+    destination = route_waypoints[-1]
     print("Driving along route...")
 
     # -------------------------------------------
@@ -94,8 +94,7 @@ def main():
             vehicle.apply_control(control)
 
             # If close to destination, re-route or stop
-            remaining = agent._local_planner.done()
-            if remaining:
+            if vehicle.get_location().distance(destination) < 2.0:
                 print("Reached destination.")
                 break
 
