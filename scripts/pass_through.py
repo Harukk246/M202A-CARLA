@@ -22,6 +22,12 @@ def main():
         default=20.0,
         help="Target speed for BasicAgent in km/h (only used if --agent basic)"
     )
+    parser.add_argument(
+        "--waypoints_file",
+        type=str,
+        required=True,
+        help="Path to file containing waypoints (x y z ...)"
+    )
     args = parser.parse_args()
 
     # -------------------------------------------
@@ -66,44 +72,54 @@ def main():
    # -------------------------------------------
     # 4. Create a start and end waypoint from spawn points
     # -------------------------------------------
-    spawn_points = map.get_spawn_points()  # list of carla.Transform
+    # spawn_points = map.get_spawn_points()  # list of carla.Transform
 
-    # Randomly pick start and end transforms (ensure they are not the same)
-    start_transform = random.choice(spawn_points)
-    end_transform = random.choice(spawn_points)
-    while end_transform == start_transform:
-        end_transform = random.choice(spawn_points)
+    # # Randomly pick start and end transforms (ensure they are not the same)
+    # start_transform = random.choice(spawn_points)
+    # end_transform = random.choice(spawn_points)
+    # while end_transform == start_transform:
+    #     end_transform = random.choice(spawn_points)
 
-    # Convert transforms to waypoints on the road
-    start_wp = map.get_waypoint(start_transform.location)
-    end_wp = map.get_waypoint(end_transform.location)
+    # # Convert transforms to waypoints on the road
+    # start_wp = map.get_waypoint(start_transform.location)
+    # end_wp = map.get_waypoint(end_transform.location)
 
-    print(f"Start waypoint: x={start_wp.transform.location.x:.2f}, "
-        f"y={start_wp.transform.location.y:.2f}, "
-        f"z={start_wp.transform.location.z:.2f}")
+    # print(f"Start waypoint: x={start_wp.transform.location.x:.2f}, "
+    #     f"y={start_wp.transform.location.y:.2f}, "
+    #     f"z={start_wp.transform.location.z:.2f}")
 
-    print(f"End waypoint: x={end_wp.transform.location.x:.2f}, "
-        f"y={end_wp.transform.location.y:.2f}, "
-        f"z={end_wp.transform.location.z:.2f}")
+    # print(f"End waypoint: x={end_wp.transform.location.x:.2f}, "
+    #     f"y={end_wp.transform.location.y:.2f}, "
+    #     f"z={end_wp.transform.location.z:.2f}")
 
-    # Store them as a simple route
-    route_waypoints = [start_wp, end_wp]
+    # # Store them as a simple route
+    # route_waypoints = [start_wp, end_wp]
 
 
-    # Or you could manually define:
-    # route_waypoints = [
-    #     carla.Location(x=10, y=20, z=0),
-    #     carla.Location(x=30, y=40, z=0)
-    # ]
-    
-    # -------------------------------------------
-    # 5. Give the route to the BehaviorAgent
-    # -------------------------------------------
-    # if len(route_waypoints) > 1:
-    #     agent.set_destination(route_waypoints[0], route_waypoints[-1], clean=True)
-    # else:
-    #     print("Route is too short.")
-    #     return
+    # # Or you could manually define:
+    # # route_waypoints = [
+    # #     carla.Location(x=10, y=20, z=0),
+    # #     carla.Location(x=30, y=40, z=0)
+    # # ]
+
+    # -----------------------------
+    # Load waypoints from file
+    # -----------------------------
+    route_waypoints = []
+
+    with open(args.waypoints_file, "r") as f:
+        for line in f:
+            line = line.split("#")[0].strip()  # remove comments
+            if not line:
+                continue
+            parts = line.split()
+            if len(parts) < 3:
+                continue
+            x, y, z = map(float, parts[:3])
+            loc = carla.Location(x=x, y=y, z=z)
+            route_waypoints.append(loc)
+
+    print(f"Loaded {len(route_waypoints)} waypoints from {args.waypoints_file}")
     print("Driving along route...")
 
     # -------------------------------------------
