@@ -43,6 +43,12 @@ def main():
         default=8000,
         help="port to communicate with the traffic manager"
     )
+    parser.add_argument(
+        "--name",
+        type=str,
+        default="1",
+        help="name of car in the simulation"
+    )
     args = parser.parse_args()
 
     # -------------------------------------------
@@ -104,8 +110,6 @@ def main():
                 )
                 route_points.append(transform)
 
-        print(f"Loaded {len(route_points)} points")
-
 
     print("spawn at:", route_points[0].location)
 
@@ -122,11 +126,11 @@ def main():
     blueprint_library = world.get_blueprint_library()
     vehicle_bp = blueprint_library.find("vehicle.toyota.prius")
 
-    print("Spawning hero vehicle...")
+    print(f"Spawning vehicle {args.name}...")
     vehicle = world.try_spawn_actor(vehicle_bp, route_points[0])
 
     if vehicle is None:
-        print("Failed to spawn vehicle.")
+        print(f"Failed to spawn vehicle {args.name}.")
         return
 
     world.player = vehicle 
@@ -139,7 +143,7 @@ def main():
     ignore_traffic_light = not args.traffic_lights
     agent = BehaviorAgent(vehicle, ignore_traffic_light=ignore_traffic_light, behavior="normal")
    
-    print("Starting route...")
+    print(f"Starting route for car {args.name}...")
 
     # Tick the world a few times so everything initializes
     for _ in range(5):
@@ -151,7 +155,7 @@ def main():
     try:
         for wp in route_waypoints:
             wp_loc = wp.transform.location
-            print(f"Next waypoint: x={wp_loc.x:.2f}, y={wp_loc.y:.2f}, z={wp_loc.z:.2f}")
+            print(f"Next waypoint for car {args.name}: x={wp_loc.x:.2f}, y={wp_loc.y:.2f}, z={wp_loc.z:.2f}")
 
             # Set the current waypoint as the destination
             agent.set_destination(vehicle.get_location(), wp_loc, clean=True)
@@ -170,9 +174,9 @@ def main():
                     # Compute distance to waypoint
                     dist = vehicle.get_location().distance(wp_loc)
 
-                    # Only print every print_interval ticks
-                    if tick_counter % print_interval == 0:
-                        print(f"Distance to waypoint: {dist:.2f} meters")
+                    # # Only print every print_interval ticks
+                    # if tick_counter % print_interval == 0:
+                    #     print(f"Distance to waypoint: {dist:.2f} meters")
 
                     tick_counter += 1
 
@@ -184,10 +188,10 @@ def main():
                     print("agent error, next waypoint")
                     break
 
-        print("Reached destination.")
+        print(f"{args.name} reached destination.")
         
     finally:
-        print("Destroying actors...")
+        print(f"Destroying {args.name}...")
         vehicle.destroy()
         # tick a few times to destroy the vehicle properly
         for _ in range(5):
@@ -196,7 +200,6 @@ def main():
     settings.synchronous_mode = False
     settings.fixed_delta_seconds = None
     world.apply_settings(settings)
-    print("Done.")
 
 if __name__ == "__main__":
     try:

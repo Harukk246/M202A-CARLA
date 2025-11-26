@@ -39,10 +39,13 @@ for car_id in "$@"; do
     # Compute TM port for this car
     TM_PORT=$((BASE_TM_PORT + index))
 
+     # Generate name string from index
+    CAR_NAME="Car_$index"
+
     if [ "$USE_T" = true ]; then
-        python ./one_car_route.py --read --id "$car_id" -t --tm-port "$TM_PORT" &
+        python ./one_car_route.py --read --id "$car_id" -t --tm-port "$TM_PORT" --name "$CAR_NAME" &
     else
-        python ./one_car_route.py --read --id "$car_id" --tm-port "$TM_PORT" &
+        python ./one_car_route.py --read --id "$car_id" --tm-port "$TM_PORT" --name "$CAR_NAME" &
     fi
 
     # Save PID
