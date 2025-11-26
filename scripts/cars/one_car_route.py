@@ -4,7 +4,14 @@ import random
 import sys
 import argparse 
 import os
+import signal
 from behavior_agent import BehaviorAgent
+
+def handle_sigterm(signum, frame):
+    raise KeyboardInterrupt  # convert SIGTERM into KeyboardInterrupt
+
+# Register the handler
+signal.signal(signal.SIGTERM, handle_sigterm)
 
 COLOR_MAP = {
     "red":      "255,0,0",

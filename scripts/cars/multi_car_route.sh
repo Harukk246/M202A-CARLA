@@ -27,7 +27,7 @@ index=0
 cleanup() {
     echo "Stopping all cars..."
     for pid in "${pids[@]}"; do
-        kill -SIGINT "$pid" 2>/dev/null
+        kill "$pid"
     done
     wait
     exit
