@@ -48,6 +48,14 @@ def main():
     world = client.get_world()
     w_map = world.get_map()
 
+    # -------------------------------------------
+    # Set synchronous mode
+    # -------------------------------------------
+    settings = world.get_settings()
+    settings.synchronous_mode = True  # Enable sync mode
+    settings.fixed_delta_seconds = 0.05  # 20 Hz simulation (optional)
+    world.apply_settings(settings)
+
     # -----------------------------
     # Load route from file
     # -----------------------------
@@ -174,6 +182,9 @@ def main():
         print("Destroying actors...")
         vehicle.destroy()
 
+    settings.synchronous_mode = False
+    settings.fixed_delta_seconds = None
+    world.apply_settings(settings)
     print("Done.")
 
 if __name__ == "__main__":
