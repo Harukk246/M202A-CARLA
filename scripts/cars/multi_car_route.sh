@@ -16,8 +16,8 @@ for car_id in "$@"; do
     fi
 
     if [ "$USE_T" = true ]; then
-        python ./one_car_route.py --read --id "$car_id" -t
+        python ./one_car_route.py --read --id "$car_id" -t &
     else
-        python ./one_car_route.py --read --id "$car_id"
+        python ./one_car_route.py --read --id "$car_id" &
     fi
 done
