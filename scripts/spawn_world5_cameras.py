@@ -2,6 +2,7 @@ import carla
 import util
 import numpy as np
 import cv2
+import subprocess
 from queue import Queue, Empty
 
 # Import camera configurations from util
@@ -24,7 +25,7 @@ def main():
     
     camera_data = []
     
-    # Spawn all cameras and set up queues
+    # Spawn all cameras and set up queues and ffmpeg processes
     for config in CAMERA_CONFIGS:
         camera_id = config["id"]
         pos = config["pos"]
@@ -42,13 +43,42 @@ def main():
         # Create queue for this camera and set up listener
         q = Queue()
         camera.listen(q.put)
+        
+        # Set up ffmpeg process for this camera
+        filename = f"camera_{camera_id}.mp4"
+        ffmpeg_cmd = [
+            "ffmpeg",
+            "-y",                    # overwrite output file
+            "-f", "rawvideo",
+            "-vcodec", "rawvideo",
+            "-pix_fmt", "bgr24",     # format we'll send from numpy
+            "-s", f"{util.WIDTH}x{util.HEIGHT}",
+            "-r", str(util.FPS),     # input frame rate (from util.py)
+            "-i", "-",               # read video from stdin
+            "-an",                   # no audio
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            filename,
+        ]
+        
+        proc = subprocess.Popen(
+            ffmpeg_cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        
         camera_data.append({
             'camera': camera,
             'queue': q,
-            'id': camera_id
+            'id': camera_id,
+            'ffmpeg_proc': proc,
+            'filename': filename
         })
+        
+        print(f"Camera {camera_id} recording to {filename}")
     
-    print(f"\nSpawned {len(camera_data)} cameras. Viewers started.")
+    print(f"\nSpawned {len(camera_data)} cameras. Recording started.")
     print("Press Ctrl+C or ESC to quit.\n")
     
     try:
@@ -68,6 +98,15 @@ def main():
                     (frame.height, frame.width, 4)
                 )[:, :, :3].copy()
                 
+                # Sanity: dimensions must match what we told ffmpeg
+                assert frame.width == util.WIDTH and frame.height == util.HEIGHT
+                
+                # Write raw bytes to ffmpeg stdin
+                try:
+                    cam_info['ffmpeg_proc'].stdin.write(arr.tobytes())
+                except BrokenPipeError:
+                    print(f"Warning: ffmpeg process for camera {cam_info['id']} closed unexpectedly")
+                
                 # Display frame in window named after camera ID
                 window_name = f"Camera {cam_info['id']}"
                 cv2.imshow(window_name, arr)
@@ -79,10 +118,17 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        print("\nShutting down cameras...")
+        print("\nShutting down cameras and ffmpeg processes...")
         for cam_info in camera_data:
             cam_info['camera'].stop()
             cam_info['camera'].destroy()
+            
+            # Clean shutdown of ffmpeg
+            if cam_info['ffmpeg_proc'].stdin:
+                cam_info['ffmpeg_proc'].stdin.close()
+            cam_info['ffmpeg_proc'].wait()
+            print(f"Camera {cam_info['id']} saved to {cam_info['filename']}")
+        
         cv2.destroyAllWindows()
         print("All cameras stopped.")
 

@@ -5,7 +5,7 @@ import numpy as np
 WIDTH = 1280
 HEIGHT = 720
 FOV = 90
-FPS = 30
+FPS = 20
 
 # Camera configurations
 CAMERA_CONFIGS = [
@@ -45,7 +45,7 @@ def check_sync(world):
         print("CARLA is in async mode! Setting to synchronous mode...")
 
         settings.synchronous_mode = True        # Enable synchronous mode
-        settings.fixed_delta_seconds = 0.05      # 20 FPS simulation step (adjust as needed)
+        settings.fixed_delta_seconds = 1 / FPS      # 20 FPS simulation step (adjust as needed)
 
         world.apply_settings(settings)
 
