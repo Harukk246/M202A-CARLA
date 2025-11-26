@@ -6,6 +6,27 @@ import argparse
 import os
 from behavior_agent import BehaviorAgent
 
+COLOR_MAP = {
+    "red":      "255,0,0",
+    "green":    "0,255,0",
+    "blue":     "0,0,255",
+    "yellow":   "255,255,0",
+    "cyan":     "0,255,255",
+    "magenta":  "255,0,255",
+    "white":    "255,255,255",
+    "black":    "0,0,0",
+    "orange":   "255,165,0",
+    "purple":   "128,0,128",
+    "pink":     "255,192,203",
+    "gray":     "128,128,128",
+    "brown":    "139,69,19",
+    "lime":     "0,255,0",
+    "teal":     "0,128,128",
+    "navy":     "0,0,128",
+    "olive":    "128,128,0",
+}
+VALID_COLOR_NAMES = ", ".join(COLOR_MAP.keys())
+
 def main():
 
     # -----------------------------
@@ -48,6 +69,12 @@ def main():
         type=str,
         default="1",
         help="name of car in the simulation"
+    )
+    parser.add_argument(
+        "--color",
+        type=str,
+        default="red",
+        help=f"Color of the vehicle in the simulation. Valid names: {VALID_COLOR_NAMES}"
     )
     args = parser.parse_args()
 
@@ -125,6 +152,11 @@ def main():
     # -------------------------------------------
     blueprint_library = world.get_blueprint_library()
     vehicle_bp = blueprint_library.find("vehicle.toyota.prius")
+    if args.color:
+        color_input = args.color.lower()
+        color_value = COLOR_MAP.get(color_input, args.color)
+    if vehicle_bp.has_attribute("color"):
+        vehicle_bp.set_attribute("color", color_value)
 
     print(f"Spawning vehicle {args.name}...")
     vehicle = world.try_spawn_actor(vehicle_bp, route_points[0])

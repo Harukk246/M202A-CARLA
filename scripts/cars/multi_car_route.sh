@@ -1,6 +1,12 @@
 #!/bin/bash
 
-# Check if -t was given anywhere in the arguments
+COLORS=("red" "green" "blue" "yellow" "cyan" "magenta" "white" "black" "orange" "purple" "pink" "gray" "brown" "lime" "teal" "navy" "olive")
+SHUFFLED_COLORS=($(printf "%s\n" "${COLORS[@]}" | shuf))
+
+
+# -------------------------------------------
+# check traffic lights flag
+# -------------------------------------------
 USE_T=false
 for arg in "$@"; do
     if [ "$arg" = "-t" ]; then
@@ -11,11 +17,13 @@ done
 
 # Array to store PIDs
 pids=()
-
-# Base TM port
+# tm port base and index
 BASE_TM_PORT=8000
+index=0
 
-# Function to cleanup background processes on Ctrl+C
+# -------------------------------------------
+# ctrl+c cleanup function
+# -------------------------------------------
 cleanup() {
     echo "Stopping all cars..."
     for pid in "${pids[@]}"; do
@@ -23,13 +31,12 @@ cleanup() {
     done
     exit
 }
-
 # Trap Ctrl+C
 trap cleanup SIGINT
 
-# Index to increment TM ports
-index=0
-
+# -------------------------------------------
+# run one_car_route.py for each car id
+# -------------------------------------------
 # Loop over all arguments, skipping -t
 for car_id in "$@"; do
     if [ "$car_id" = "-t" ]; then
@@ -39,13 +46,17 @@ for car_id in "$@"; do
     # Compute TM port for this car
     TM_PORT=$((BASE_TM_PORT + index))
 
-     # Generate name string from index
-    CAR_NAME="Car_$index"
+    # Pick a unique color
+    CAR_COLOR="${SHUFFLED_COLORS[$index]}"
+
+     # set car name
+    CAR_NAME="Car_${index}_${CAR_COLOR}"
+    
 
     if [ "$USE_T" = true ]; then
-        python ./one_car_route.py --read --id "$car_id" -t --tm-port "$TM_PORT" --name "$CAR_NAME" &
+        python ./one_car_route.py --read --id "$car_id" -t --tm-port "$TM_PORT" --name "$CAR_NAME" --color "$CAR_COLOR" &
     else
-        python ./one_car_route.py --read --id "$car_id" --tm-port "$TM_PORT" --name "$CAR_NAME" &
+        python ./one_car_route.py --read --id "$car_id" --tm-port "$TM_PORT" --name "$CAR_NAME" --color "$CAR_COLOR" &
     fi
 
     # Save PID
