@@ -189,6 +189,9 @@ def main():
     finally:
         print("Destroying actors...")
         vehicle.destroy()
+        # tick a few times to destroy the vehicle properly
+        for _ in range(5):
+            world.tick()
 
     settings.synchronous_mode = False
     settings.fixed_delta_seconds = None
