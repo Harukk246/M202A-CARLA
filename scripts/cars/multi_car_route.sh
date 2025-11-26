@@ -39,7 +39,7 @@ for car_id in "$@"; do
     # Save PID
     pids+=($!)
 
-    sleep(3)  # slight delay to stagger startups
+    sleep 3  # slight delay to stagger startups
 done
 
 # Wait for all background processes to finish
