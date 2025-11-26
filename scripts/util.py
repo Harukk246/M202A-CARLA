@@ -38,9 +38,16 @@ def common_init():
 def check_sync(world):
     # Detect sync mode & set up a safe tick loop
     settings = world.get_settings()
-    sync = settings.synchronous_mode
-    if settings.synchronous_mode == True:
-        raise RuntimeError("CARLA is not in async mode!")
+
+    print(f"Sync mode: {settings.synchronous_mode}")
+
+    if settings.synchronous_mode == False:
+        print("CARLA is in async mode! Setting to synchronous mode...")
+
+        settings.synchronous_mode = True        # Enable synchronous mode
+        settings.fixed_delta_seconds = 0.05      # 20 FPS simulation step (adjust as needed)
+
+        world.apply_settings(settings)
 
 def create_camera(world):
     bp_lib = world.get_blueprint_library()
