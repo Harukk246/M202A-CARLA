@@ -12,6 +12,9 @@ done
 # Array to store PIDs
 pids=()
 
+# Base TM port
+BASE_TM_PORT=8000
+
 # Function to cleanup background processes on Ctrl+C
 cleanup() {
     echo "Stopping all cars..."
@@ -24,22 +27,30 @@ cleanup() {
 # Trap Ctrl+C
 trap cleanup SIGINT
 
+# Index to increment TM ports
+index=0
+
 # Loop over all arguments, skipping -t
 for car_id in "$@"; do
     if [ "$car_id" = "-t" ]; then
         continue
     fi
 
+    # Compute TM port for this car
+    TM_PORT=$((BASE_TM_PORT + index))
+
     if [ "$USE_T" = true ]; then
-        python ./one_car_route.py --read --id "$car_id" -t &
+        python ./one_car_route.py --read --id "$car_id" -t --tm-port "$TM_PORT" &
     else
-        python ./one_car_route.py --read --id "$car_id" &
+        python ./one_car_route.py --read --id "$car_id" --tm-port "$TM_PORT" &
     fi
 
     # Save PID
     pids+=($!)
 
-    sleep 3  # slight delay to stagger startups
+    # Increment index for next car
+    index=$((index + 1))
+
 done
 
 # Wait for all background processes to finish
