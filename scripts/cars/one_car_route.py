@@ -138,14 +138,14 @@ def main():
                 route_points.append(transform)
 
 
-    print("spawn at:", route_points[0].location)
+    # print("spawn at:", route_points[0].location)
 
     # Convert transforms (after spawnpoint) to waypoints
     route_waypoints = [] 
     for t in route_points[1:]:
         wp = w_map.get_waypoint(t.location, project_to_road=True, lane_type=carla.LaneType.Driving)
         route_waypoints.append(wp)
-        print(f"Waypoint: x={wp.transform.location.x:.2f}, y={wp.transform.location.y:.2f}, z={wp.transform.location.z:.2f}")
+        # print(f"Waypoint: x={wp.transform.location.x:.2f}, y={wp.transform.location.y:.2f}, z={wp.transform.location.z:.2f}")
 
     # -------------------------------------------
     # Spawn the vehicle
@@ -216,8 +216,8 @@ def main():
                     if dist < 2.0:  # 2-meter tolerance
                         break
                 except Exception as e: 
-                    print(e)
-                    print("agent error, next waypoint")
+                    # print(e)
+                    # print("agent error, next waypoint")
                     break
 
         print(f"{args.name} reached destination.")

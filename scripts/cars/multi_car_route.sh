@@ -38,7 +38,7 @@ trap cleanup SIGINT
 # run one_car_route.py for each car id
 # -------------------------------------------
 # Loop over all arguments, skipping -t
-for car_id in "$@"; do
+for route_id in "$@"; do
     if [ "$car_id" = "-t" ]; then
         continue
     fi
@@ -50,13 +50,13 @@ for car_id in "$@"; do
     CAR_COLOR="${SHUFFLED_COLORS[$index]}"
 
      # set car name
-    CAR_NAME="Car_${index}_${CAR_COLOR}"
+    CAR_NAME="Route_${route_id}_${CAR_COLOR}"
     
 
     if [ "$USE_T" = true ]; then
-        python ./one_car_route.py --read --id "$car_id" -t --tm-port "$TM_PORT" --name "$CAR_NAME" --color "$CAR_COLOR" &
+        python ./one_car_route.py --read --id "$route_id" -t --tm-port "$TM_PORT" --name "$CAR_NAME" --color "$CAR_COLOR" &
     else
-        python ./one_car_route.py --read --id "$car_id" --tm-port "$TM_PORT" --name "$CAR_NAME" --color "$CAR_COLOR" &
+        python ./one_car_route.py --read --id "$route_id" --tm-port "$TM_PORT" --name "$CAR_NAME" --color "$CAR_COLOR" &
     fi
 
     # Save PID
