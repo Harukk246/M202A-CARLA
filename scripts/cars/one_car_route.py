@@ -37,6 +37,12 @@ def main():
         default=False,
         help="Respect traffic lights"
     )
+    parser.add_argument(
+        "--tm-port",
+        type=int,
+        default=8000,
+        help="port to communicate with the traffic manager"
+    )
     args = parser.parse_args()
 
     # -------------------------------------------
@@ -125,7 +131,7 @@ def main():
 
     world.player = vehicle 
 
-    vehicle.set_autopilot(False)  # important! BehaviorAgent controls it manually
+    vehicle.set_autopilot(False, args.tm_port)  # important! BehaviorAgent controls it manually
 
     # -----------------------------
     # Initialize the agent
