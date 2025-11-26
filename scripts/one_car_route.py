@@ -135,6 +135,10 @@ def main():
    
     print("Starting route...")
 
+    # Tick the world a few times so everything initializes
+    for _ in range(5):
+        world.tick()
+
     # -------------------------------------------
     # Simulation loop
     # -------------------------------------------
