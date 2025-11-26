@@ -174,8 +174,6 @@ def main():
                     print("agent error, next waypoint")
                     break
 
-                time.sleep(0.05)
-
         print("Reached destination.")
         
     finally:
