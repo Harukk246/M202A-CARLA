@@ -25,7 +25,7 @@ def create_hevc_command(port):
         # NVENC HEVC tuned for low latency
         "-c:v", "hevc_nvenc",
         "-tune", "ll",                 # low-latency path
-        "-preset", "p1",               # fastest
+        "-preset", "llhp",              # fastest
         "-rc", "cbr",                  # constant bitrate (stable)
         "-b:v", "5M",                  # target bitrate for 720p30
         "-maxrate", "5M",              # cap peak
