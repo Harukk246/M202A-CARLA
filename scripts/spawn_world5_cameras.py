@@ -1,134 +1,11 @@
 import carla
 import util
 import numpy as np
-import time, sys, subprocess, random, select, os, sys
+import cv2
 from queue import Queue, Empty
-import threading
 
 # Import camera configurations from util
 CAMERA_CONFIGS = util.CAMERA_CONFIGS
-
-def create_hevc_command(port):
-    """Create ffmpeg command for HEVC streaming to specified port."""
-    return [
-        "ffmpeg", "-loglevel", "error",
-        
-        # Raw CARLA frames
-        "-f", "rawvideo",
-        "-pix_fmt", "bgra",
-        "-s", f"{util.WIDTH}x{util.HEIGHT}",
-        "-r", str(util.FPS),
-        "-i", "-",
-        
-        "-an",
-        
-        # NVENC HEVC tuned for low latency
-        "-c:v", "hevc_nvenc",
-        "-tune", "ll",                 # low-latency path
-        "-preset", "llhp",              # fastest
-        "-rc", "cbr",                  # constant bitrate (stable)
-        "-b:v", "5M",                  # target bitrate for 720p30
-        "-maxrate", "5M",              # cap peak
-        "-bufsize", "1M",              # ~200ms VBV at 5 Mb/s
-        "-rc-lookahead", "0",          # no lookahead queue
-        "-g", str(util.FPS),           # 1s GOP (e.g., 30 at 30fps)
-        "-bf", "0",                    # no B-frames
-        "-refs", "1",                  # minimal refs
-        "-forced-idr", "1",            # make GOP boundaries IDR
-        "-spatial_aq", "0",
-        "-temporal_aq", "0",
-        
-        # Transport/mux: minimize buffering
-        "-fflags", "nobuffer",
-        "-flags", "low_delay",
-        "-flush_packets", "1",
-        "-max_delay", "0",
-        "-muxdelay", "0",
-        "-muxpreload", "0",
-        
-        "-f", "mpegts",
-        f"udp://127.0.0.1:{port}?pkt_size=1316"
-    ]
-
-def camera_stream_worker(camera, camera_id, port):
-    """Worker thread to handle frames from a single camera and stream via ffmpeg."""
-    q: Queue = Queue(maxsize=1)
-    proc = None
-    
-    def on_frame(frame):
-        try:
-            q.get_nowait()
-        except Empty:
-            pass
-        q.put_nowait(frame)
-    
-    try:
-        camera.listen(on_frame)
-        print(f"Camera {camera_id} started, streaming to port {port}...")
-        
-        # Small delay to avoid overwhelming system with simultaneous subprocess creation
-        time.sleep(0.1)
-        
-        proc = subprocess.Popen(
-            create_hevc_command(port),
-            stdin=subprocess.PIPE,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            bufsize=0,
-        )
-        
-        # Give ffmpeg a moment to start
-        time.sleep(0.1)
-        
-        # Check if process started successfully
-        if proc.poll() is not None:
-            stderr_output = proc.stderr.read().decode('utf-8', errors='ignore')
-            raise RuntimeError(f"ffmpeg for camera {camera_id} failed to start: {stderr_output}")
-        
-        while True:
-            try:
-                frame = q.get(timeout=0.05)
-            except Empty:
-                # Check if process is still alive
-                if proc.poll() is not None:
-                    stderr_output = proc.stderr.read().decode('utf-8', errors='ignore')
-                    print(f"ffmpeg for camera {camera_id} exited unexpectedly: {stderr_output}")
-                    break
-                continue
-            
-            # Check if process is still alive before writing
-            if proc.poll() is not None:
-                stderr_output = proc.stderr.read().decode('utf-8', errors='ignore')
-                print(f"ffmpeg for camera {camera_id} exited: {stderr_output}")
-                break
-            
-            # Write frame to ffmpeg with error handling
-            try:
-                proc.stdin.write(frame.raw_data)
-                proc.stdin.flush()
-            except BrokenPipeError:
-                print(f"Broken pipe for camera {camera_id} - ffmpeg may have crashed")
-                break
-            except OSError as e:
-                print(f"OS error writing to camera {camera_id}: {e}")
-                break
-            
-    except Exception as e:
-        print(f"Error in camera {camera_id} stream: {e}")
-    finally:
-        camera.stop()
-        camera.destroy()
-        if proc is not None:
-            print(f"Stopping HEVC encoder for camera {camera_id}...")
-            try:
-                proc.stdin.close()
-            except:
-                pass
-            try:
-                proc.wait(timeout=2.0)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                proc.wait()
 
 def main():
     util.common_init()
@@ -146,9 +23,9 @@ def main():
     cam_bp.set_attribute("sensor_tick", str(1.0 / util.FPS))
     
     cameras = []
-    threads = []
+    camera_queues = []
     
-    # Spawn all cameras with small delays to avoid overwhelming system
+    # Spawn all cameras and set up queues
     for config in CAMERA_CONFIGS:
         camera_id = config["id"]
         pos = config["pos"]
@@ -163,34 +40,40 @@ def main():
             print(f"Warning: Failed to spawn camera {camera_id} (position occupied). Skipping.")
             continue
         
+        # Create queue for this camera and set up listener
+        q = Queue()
+        camera.listen(q.put)
         cameras.append((camera, camera_id))
-        port = 5000 + camera_id  # Incrementing ports based on camera ID
-        
-        # Start streaming thread for this camera
-        thread = threading.Thread(
-            target=camera_stream_worker,
-            args=(camera, camera_id, port),
-            daemon=True
-        )
-        thread.start()
-        threads.append(thread)
-        
-        # Small delay between spawning to avoid resource exhaustion
-        time.sleep(0.05)
+        camera_queues.append((q, camera_id))
     
-    print(f"\nSpawned {len(cameras)} cameras. Streaming started.")
-    print("Press Ctrl+C to quit.\n")
-    
-    # Print port mappings
-    print("Camera ID -> Port mappings:")
-    for config in CAMERA_CONFIGS:
-        print(f"  Camera {config['id']} -> UDP port {5000 + config['id']}")
-    print()
+    print(f"\nSpawned {len(cameras)} cameras. Viewers started.")
+    print("Press Ctrl+C or ESC to quit.\n")
     
     try:
-        # Keep main thread alive
         while True:
-            time.sleep(1)
+            # Advance the simulation by one fixed step
+            world_frame = world.tick()
+            
+            # Get frames from all cameras
+            for q, camera_id in camera_queues:
+                try:
+                    frame = q.get(timeout=0.1)
+                except Empty:
+                    continue
+                
+                # Convert frame to numpy array (BGRA -> BGR)
+                arr = np.frombuffer(frame.raw_data, np.uint8).reshape(
+                    (frame.height, frame.width, 4)
+                )[:, :, :3].copy()
+                
+                # Display frame in window named after camera ID
+                window_name = f"Camera {camera_id}"
+                cv2.imshow(window_name, arr)
+            
+            # Process window events and check for ESC key
+            if cv2.waitKey(1) == 27:  # ESC key
+                break
+                
     except KeyboardInterrupt:
         pass
     finally:
@@ -198,6 +81,7 @@ def main():
         for camera, camera_id in cameras:
             camera.stop()
             camera.destroy()
+        cv2.destroyAllWindows()
         print("All cameras stopped.")
 
 if __name__ == "__main__":
