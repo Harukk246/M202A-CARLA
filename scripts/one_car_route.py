@@ -53,7 +53,7 @@ def main():
     # -------------------------------------------
     settings = world.get_settings()
     settings.synchronous_mode = True  # Enable sync mode
-    settings.fixed_delta_seconds = 0.05  # 20 Hz simulation (optional)
+    settings.fixed_delta_seconds = 1.0 / 30.0  # 30 fps world 
     world.apply_settings(settings)
 
     # -----------------------------
