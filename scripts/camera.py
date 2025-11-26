@@ -112,6 +112,7 @@ def main():
     client = carla.Client("localhost", 2000)
     client.set_timeout(10.0)
     world = client.get_world()
+    util.check_sync(world)
 
     # fetch all vehicles in world
     vehicles = world.get_actors().filter('vehicle.*')
@@ -141,7 +142,10 @@ def main():
 
     try:
         while True:
-            snapshot = world.wait_for_tick()
+            # Advance the simulation by one fixed step
+            world_frame = world.tick()  # returns frame number
+
+            snapshot = world.get_snapshot()
             current_time = snapshot.timestamp.elapsed_seconds
 
             try:
