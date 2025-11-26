@@ -22,8 +22,7 @@ def main():
     cam_bp.set_attribute("fov", str(util.FOV))
     cam_bp.set_attribute("sensor_tick", str(1.0 / util.FPS))
     
-    cameras = []
-    camera_queues = []
+    camera_data = []
     
     # Spawn all cameras and set up queues
     for config in CAMERA_CONFIGS:
@@ -43,10 +42,13 @@ def main():
         # Create queue for this camera and set up listener
         q = Queue()
         camera.listen(q.put)
-        cameras.append((camera, camera_id))
-        camera_queues.append((q, camera_id))
+        camera_data.append({
+            'camera': camera,
+            'queue': q,
+            'id': camera_id
+        })
     
-    print(f"\nSpawned {len(cameras)} cameras. Viewers started.")
+    print(f"\nSpawned {len(camera_data)} cameras. Viewers started.")
     print("Press Ctrl+C or ESC to quit.\n")
     
     try:
@@ -55,9 +57,9 @@ def main():
             world_frame = world.tick()
             
             # Get frames from all cameras
-            for q, camera_id in camera_queues:
+            for cam_info in camera_data:
                 try:
-                    frame = q.get(timeout=0.1)
+                    frame = cam_info['queue'].get(timeout=0.1)
                 except Empty:
                     continue
                 
@@ -67,7 +69,7 @@ def main():
                 )[:, :, :3].copy()
                 
                 # Display frame in window named after camera ID
-                window_name = f"Camera {camera_id}"
+                window_name = f"Camera {cam_info['id']}"
                 cv2.imshow(window_name, arr)
             
             # Process window events and check for ESC key
@@ -78,9 +80,9 @@ def main():
         pass
     finally:
         print("\nShutting down cameras...")
-        for camera, camera_id in cameras:
-            camera.stop()
-            camera.destroy()
+        for cam_info in camera_data:
+            cam_info['camera'].stop()
+            cam_info['camera'].destroy()
         cv2.destroyAllWindows()
         print("All cameras stopped.")
 
