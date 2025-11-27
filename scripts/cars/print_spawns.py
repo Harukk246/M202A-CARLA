@@ -4,6 +4,9 @@ import random
 import sys
 import argparse 
 import os
+import matplotlib
+matplotlib.use("Qt5Agg")  # or "TkAgg" if you prefer
+import matplotlib.pyplot as plt
 
 def main():
 
@@ -34,10 +37,9 @@ def main():
     for sp in outside_spawns:
         print(sp.location, sp.rotation)
 
-      # -------------------------------------------
+    # -------------------------------------------
     # Plot the spawn points
     # -------------------------------------------
-    import matplotlib.pyplot as plt
 
     # Extract XY coordinates
     xs_inside = [sp.location.x for sp in inside_spawns]
@@ -46,24 +48,31 @@ def main():
     xs_outside = [sp.location.x for sp in outside_spawns]
     ys_outside = [sp.location.y for sp in outside_spawns]
 
-    plt.figure(figsize=(10, 8))
+    plt.figure(figsize=(12, 10))
 
-    # Outside spawns = red
+    # Plot outside spawns = red
     plt.scatter(xs_outside, ys_outside, c='red', label='Outside Highway')
+    # Add labels for each outside spawn
+    for i, (x, y) in enumerate(zip(xs_outside, ys_outside)):
+        plt.text(x, y, str(i), fontsize=8, color='red')
 
-    # Inside spawns = blue
+    # Plot inside spawns = blue
     plt.scatter(xs_inside, ys_inside, c='blue', label='Inside Highway')
+    # Add labels for each inside spawn
+    for i, (x, y) in enumerate(zip(xs_inside, ys_inside)):
+        plt.text(x, y, str(i), fontsize=8, color='blue')
 
-    # Add labels and formatting
-    plt.title("CARLA Spawn Point Map")
+    # Formatting
+    plt.title("CARLA Spawn Point Map with Labels")
     plt.xlabel("X coordinate (m)")
     plt.ylabel("Y coordinate (m)")
     plt.legend()
     plt.grid(True)
-    plt.axis('equal')   # equal scaling of x/y
+    plt.axis('equal')  # equal scaling of x/y
 
-    # Show the plot
+    # Show or save
     plt.show()
+    # plt.savefig("spawn_points_labeled.png", dpi=300)
 
 if __name__ == "__main__":
     try:
