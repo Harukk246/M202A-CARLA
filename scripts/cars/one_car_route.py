@@ -245,11 +245,7 @@ def main():
         # tick a few times to destroy the vehicle properly
         for _ in range(5):
             world.tick()
-
-    settings.synchronous_mode = False
-    settings.fixed_delta_seconds = None
-    world.apply_settings(settings)
-
+            
 if __name__ == "__main__":
     try:
         main()
