@@ -29,7 +29,7 @@ def main():
     for sp in outside_spawns:
         print(sp.location, sp.rotation)
     print("Inside Spawns:")
-    for sp in outside_spawns:
+    for sp in inside_spawns:
         print(sp.location, sp.rotation)
 
     print("Total spawn points:", len(spawns))
