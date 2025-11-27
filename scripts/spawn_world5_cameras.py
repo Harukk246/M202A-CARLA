@@ -3,6 +3,7 @@ import util
 import numpy as np
 import cv2
 import subprocess
+import os
 from queue import Queue, Empty
 
 # Import camera configurations from util
@@ -10,6 +11,10 @@ CAMERA_CONFIGS = util.CAMERA_CONFIGS
 
 def main():
     util.common_init()
+    
+    # Create videos directory if it doesn't exist
+    videos_dir = "videos"
+    os.makedirs(videos_dir, exist_ok=True)
     
     client = carla.Client("localhost", 2000)
     client.set_timeout(10.0)
@@ -45,7 +50,7 @@ def main():
         camera.listen(q.put)
         
         # Set up ffmpeg process for this camera
-        filename = f"camera_{camera_id}.mp4"
+        filename = os.path.join(videos_dir, f"camera_{camera_id}.mp4")
         ffmpeg_cmd = [
             "ffmpeg",
             "-y",                    # overwrite output file
@@ -112,8 +117,8 @@ def main():
                 # cv2.imshow(window_name, arr)
             
             # Process window events and check for ESC key
-            if cv2.waitKey(1) == 27:  # ESC key
-                break
+            # if cv2.waitKey(1) == 27:  # ESC key
+            #    break
                 
     except KeyboardInterrupt:
         pass
