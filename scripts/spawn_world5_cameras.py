@@ -107,9 +107,9 @@ def main():
                 except BrokenPipeError:
                     print(f"Warning: ffmpeg process for camera {cam_info['id']} closed unexpectedly")
                 
-                # Display frame in window named after camera ID
-                window_name = f"Camera {cam_info['id']}"
-                cv2.imshow(window_name, arr)
+                # # Display frame in window named after camera ID
+                # window_name = f"Camera {cam_info['id']}"
+                # cv2.imshow(window_name, arr)
             
             # Process window events and check for ESC key
             if cv2.waitKey(1) == 27:  # ESC key

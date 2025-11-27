@@ -16,23 +16,29 @@ Do not run the above command (in step 1) on Vamsi's desktop. Instead use `./run_
 2. Setup and run the CARLA simulator:
 
 ```bash
-cd /home/erdos/workspace/M202A-CARLA
+cd scripts/dev
 . ./start_carla.sh
 ```
+This script also sets the python path (solves behaviorAgent not found error) and loads the town 5 map. 
+Safe to re-run in order to reload town 5. 
 
-2. Load map
+2. Run a one-car scenario
 ```bash
-python load_town5.py
-```
-
-Run a one-car scenario
-```bash
+cd scripts/cars
 python one_car_route.py
 ```
 Run with the `--help` flag for more options. 
 
+OR, Run a multi-car scenario
+```bash
+cd scripts/cars
+./multi_car_route.sh <route id 1> <route id 2>
+```
+Parameters are route ids, separated by spaces. Colors are randomly assigned. 
+
 3. Run the cleanup script to stop CARLA: 
 ```bash
+cd scripts/dev
 ./cleanup.sh
 ```
 ## Notes
