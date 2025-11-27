@@ -205,7 +205,7 @@ def main():
             # Loop until we reach this waypoint
             while True:
                 try: 
-                    world.tick()
+                    world.wait_for_tick()
                     agent.update_information(world)
                     control = agent.run_step()
                     vehicle.apply_control(control)
@@ -219,6 +219,7 @@ def main():
 
                     tick_counter += 1
 
+                    # this never gets hit because of the exception
                     # Check if we are close enough to the current waypoint
                     if dist < 2.0:  # 2-meter tolerance
                         break
