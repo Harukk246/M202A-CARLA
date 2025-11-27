@@ -83,6 +83,12 @@ def main():
         default="red",
         help=f"Color of the vehicle in the simulation. Valid names: {VALID_COLOR_NAMES}"
     )
+    parser.add_argument(
+        "--run",
+        action="store_true",
+        default=False,
+        help="run standalone without cameras"
+    )
     args = parser.parse_args()
 
     # -------------------------------------------
@@ -205,7 +211,10 @@ def main():
             # Loop until we reach this waypoint
             while True:
                 try: 
-                    world.wait_for_tick()
+                    if(args.run):
+                        world.tick()
+                    else:
+                        world.wait_for_tick()
                     agent.update_information(world)
                     control = agent.run_step()
                     vehicle.apply_control(control)
@@ -224,8 +233,8 @@ def main():
                     if dist < 2.0:  # 2-meter tolerance
                         break
                 except Exception as e: 
-                    # print(e)
-                    # print("agent error, next waypoint")
+                    print(e)
+                    print("agent error, next waypoint")
                     break
 
         print(f"{args.name} reached destination.")

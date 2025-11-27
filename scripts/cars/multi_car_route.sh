@@ -40,7 +40,7 @@ trap cleanup SIGINT
 # -------------------------------------------
 # Loop over all arguments, skipping -t
 for route_id in "$@"; do
-    if [ "$car_id" = "-t" ]; then
+    if [ "$route_id" = "-t" ]; then
         continue
     fi
 
