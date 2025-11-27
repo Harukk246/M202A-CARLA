@@ -131,8 +131,11 @@ def main():
             else:
                 outside_spawns.append(sp)
         # Pick points: spawn/outside, middle/inside, destination/outside
+        if args.path_length < 2:
+            raise ValueError("path_length must be at least 2")
+    
         route_points.append(random.choice(outside_spawns))
-        for i in (args.path_length - 2):
+        for i in range(args.path_length - 2):
             route_points.append(random.choice(inside_spawns))
         route_points.append(random.choice(outside_spawns))
 
