@@ -89,6 +89,12 @@ def main():
         default=False,
         help="run standalone without cameras"
     )
+    parser.add_argument(
+        "-l", "--path-length",
+        type=int,
+        default=3,
+        help="path length in number of waypoints (for random route generation)"
+    )
     args = parser.parse_args()
 
     # -------------------------------------------
@@ -103,10 +109,11 @@ def main():
     # -------------------------------------------
     # Set synchronous mode
     # -------------------------------------------
-    settings = world.get_settings()
-    settings.synchronous_mode = True  # Enable sync mode
-    settings.fixed_delta_seconds = 1.0 / 30.0  # 30 fps world 
-    world.apply_settings(settings)
+    if args.run: 
+        settings = world.get_settings()
+        settings.synchronous_mode = True  # Enable sync mode
+        settings.fixed_delta_seconds = 1.0 / 30.0  # 30 fps world 
+        world.apply_settings(settings)
 
     # -----------------------------
     # Load route from file
@@ -125,7 +132,8 @@ def main():
                 outside_spawns.append(sp)
         # Pick points: spawn/outside, middle/inside, destination/outside
         route_points.append(random.choice(outside_spawns))
-        route_points.append(random.choice(inside_spawns))
+        for i in (args.path_length - 2):
+            route_points.append(random.choice(inside_spawns))
         route_points.append(random.choice(outside_spawns))
 
         if args.write:
@@ -155,10 +163,13 @@ def main():
 
     # Convert transforms (after spawnpoint) to waypoints
     route_waypoints = [] 
+
+    print(f"Generated {len(route_points)} route points:")
+    print(f"spawn at: x={route_points[0].location.x:.2f}, y={route_points[0].location.y:.2f}, z={route_points[0].location.z:.2f}")
     for t in route_points[1:]:
         wp = w_map.get_waypoint(t.location, project_to_road=True, lane_type=carla.LaneType.Driving)
         route_waypoints.append(wp)
-        # print(f"Waypoint: x={wp.transform.location.x:.2f}, y={wp.transform.location.y:.2f}, z={wp.transform.location.z:.2f}")
+        print(f"Waypoint: x={wp.transform.location.x:.2f}, y={wp.transform.location.y:.2f}, z={wp.transform.location.z:.2f}")
 
     # -------------------------------------------
     # Spawn the vehicle
