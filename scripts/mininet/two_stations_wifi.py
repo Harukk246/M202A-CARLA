@@ -9,7 +9,7 @@ from mn_wifi.wmediumdConnector import interference
 from mininet.log import setLogLevel, info
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-TCPDUMP_LOG_FILE = os.path.join(PROJECT_ROOT, 'sn1_tcpdump.log')
+TCPDUMP_LOG_FILE = os.path.join(PROJECT_ROOT, 'tcpdump.log')
 PCAP_DIR = os.path.join(PROJECT_ROOT, 'pcaps')
 VIDEO_DIR = "/home/wifi/videos"
 MONITOR_INTERFACE = "hwsim0"
@@ -165,9 +165,6 @@ def build_and_run_topology():
         passwd=wifi_passwd,
         encrypt='wpa2',
     )
-    sn1  = net.addStation('sn1', ip='10.0.0.254/24', position='15,28,0')  # sniffer (IP not really needed)
-
-    c1 = net.addController('c1')
 
     info("*** Configuring wifi nodes\n")
     # Optional propagation model (helps emulate distance/attenuation)
@@ -176,13 +173,10 @@ def build_and_run_topology():
 
     info("*** Starting network\n")
     net.build()
-    c1.start()
-    ap1.start([c1])
+    net.start()
 
     # Keep AP IP; not strictly needed for sta1<->sta2, but harmless
     ap1.setIP('10.0.0.1/24', intf='ap1-wlan1')
-
-    net.start()
 
     # Force sta1 to associate with ap1's SSID
     # sta1.cmd('iwconfig sta1-wlan0 essid ssid-wifi')
@@ -192,7 +186,7 @@ def build_and_run_topology():
     wait_associated(sta2, 'sta2-wlan0')
 
     # --- Disable IPv6 ---
-    for node in [sta1, sta2, sn1, ap1]:
+    for node in [sta1, sta2, ap1]:
         node.cmd("sysctl -w net.ipv6.conf.all.disable_ipv6=1")
         node.cmd("sysctl -w net.ipv6.conf.default.disable_ipv6=1")
 
@@ -201,8 +195,8 @@ def build_and_run_topology():
 
     CLI(net)
 
-    # info("*** Starting sequential streaming workload\n")
-    # stream_all_videos(sta1, sta2)
+    info("*** Starting sequential streaming workload\n")
+    stream_all_videos(sta1, sta2)
 
     info("*** Streaming complete.\n")
 
