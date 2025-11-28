@@ -137,9 +137,34 @@ def build_and_run_topology():
 
     info("*** Creating nodes\n")
     # Positions help Mininet-WiFi decide associations; keep sniffer near the path
-    sta1 = net.addStation('sta1', ip='10.0.0.200/24', position='10,30,0')
-    sta2 = net.addStation('sta2', ip='10.0.0.201/24', position='12,30,0')
-    ap1  = net.addAccessPoint('ap1', ip='10.0.0.1/24', ssid='ssid-wifi', mode='g', channel='1', position='20,30,0', datapath='user')
+    wifi_passwd = '12345678'
+    sta1 = net.addStation(
+        'sta1',
+        ip='10.0.0.200/24',
+        position='10,30,0',
+        ssid='ssid-wifi',
+        # passwd=wifi_passwd,
+        # encrypt='wpa2',
+    )
+    sta2 = net.addStation(
+        'sta2',
+        ip='10.0.0.201/24',
+        position='12,30,0',
+        ssid='ssid-wifi',
+        # passwd=wifi_passwd,
+        # encrypt='wpa2',
+    )
+    ap1 = net.addAccessPoint(
+        'ap1',
+        ip='10.0.0.1/24',
+        ssid='ssid-wifi',
+        mode='g',
+        channel='1',
+        position='20,30,0',
+        datapath='user',
+        # passwd=wifi_passwd,
+        # encrypt='wpa2',
+    )
     sn1  = net.addStation('sn1', ip='10.0.0.254/24', position='15,28,0')  # sniffer (IP not really needed)
 
     c1 = net.addController('c1')
@@ -172,22 +197,22 @@ def build_and_run_topology():
     # OPTIONAL: visualize positions (requires X/GUI). Comment out if headless.
     # net.plotGraph(max_x=100, max_y=100)
 
-    info("*** Starting sequential streaming workload\n")
-    stream_all_videos(sta1, sta2)
-
-    info("*** Streaming complete. CLI is available for additional checks.\n")
     CLI(net)
+
+    # info("*** Starting sequential streaming workload\n")
+    # stream_all_videos(sta1, sta2)
+
+    info("*** Streaming complete.\n")
 
     info("exit command received")
 
     info("*** Stopping network\n")
     net.stop()
 
-if __name__ == "__main__":
-    cleanup_previous_outputs()
-    build_and_run_topology()
-
-    with open(TCPDUMP_LOG_FILE) as f:
-        print(f.read())
+    if os.path.exists(TCPDUMP_LOG_FILE):
+        with open(TCPDUMP_LOG_FILE) as f:
+            print(f.read())
+    else:
+        info(f"*** No tcpdump log found at {TCPDUMP_LOG_FILE}\n")
 
     print("\nDone!")
