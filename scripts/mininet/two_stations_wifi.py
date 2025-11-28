@@ -137,22 +137,22 @@ def build_and_run_topology():
 
     info("*** Creating nodes\n")
     # Positions help Mininet-WiFi decide associations; keep sniffer near the path
-    wifi_passwd = '12345678'
+    wifi_passwd = '123456780'
     sta1 = net.addStation(
         'sta1',
         ip='10.0.0.200/24',
         position='10,30,0',
         ssid='ssid-wifi',
-        # passwd=wifi_passwd,
-        # encrypt='wpa2',
+        passwd=wifi_passwd,
+        encrypt='wpa2',
     )
     sta2 = net.addStation(
         'sta2',
         ip='10.0.0.201/24',
         position='12,30,0',
         ssid='ssid-wifi',
-        # passwd=wifi_passwd,
-        # encrypt='wpa2',
+        passwd=wifi_passwd,
+        encrypt='wpa2',
     )
     ap1 = net.addAccessPoint(
         'ap1',
@@ -162,8 +162,8 @@ def build_and_run_topology():
         channel='1',
         position='20,30,0',
         datapath='user',
-        # passwd=wifi_passwd,
-        # encrypt='wpa2',
+        passwd=wifi_passwd,
+        encrypt='wpa2',
     )
     sn1  = net.addStation('sn1', ip='10.0.0.254/24', position='15,28,0')  # sniffer (IP not really needed)
 
@@ -182,11 +182,13 @@ def build_and_run_topology():
     # Keep AP IP; not strictly needed for sta1<->sta2, but harmless
     ap1.setIP('10.0.0.1/24', intf='ap1-wlan1')
 
+    net.start()
+
     # Force sta1 to associate with ap1's SSID
-    sta1.cmd('iwconfig sta1-wlan0 essid ssid-wifi')
+    # sta1.cmd('iwconfig sta1-wlan0 essid ssid-wifi')
     wait_associated(sta1, 'sta1-wlan0')
 
-    sta2.cmd('iwconfig sta2-wlan0 essid ssid-wifi')
+    # sta2.cmd('iwconfig sta2-wlan0 essid ssid-wifi')
     wait_associated(sta2, 'sta2-wlan0')
 
     # --- Disable IPv6 ---
@@ -208,6 +210,10 @@ def build_and_run_topology():
 
     info("*** Stopping network\n")
     net.stop()
+
+if __name__ == "__main__":
+    cleanup_previous_outputs()
+    build_and_run_topology()
 
     if os.path.exists(TCPDUMP_LOG_FILE):
         with open(TCPDUMP_LOG_FILE) as f:
