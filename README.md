@@ -86,43 +86,62 @@ Encrypted:
 
 ```
 
+## Start the CALRA simulator (on Vamsi's desktop)
+
+```bash
+cd ~/M202A-CARLA/scripts
+./run_cont.sh
+# At this point you should be on a shell within the docker container.
+./scripts/run_simulator.sh
+```
+
+## Load World
+
+```bash
+# This command is run on the host.
+python load_town5.py
+```
+
 ## Start Cameras
 
 ```bash
+# This command is run on the host.
 python spawn_world5_cameras.py
 ```
 
-This script will start the cameras at the hardocded locations above and start streaming via ffmpeg.
-The port is defined as `port = 5000 + camera_id`
+This script will start the cameras at the hardocded locations above and start recording to mp4 (with ffmpeg). This script is responsible for advancing the world tick when Carla is running in sync mode.
 
-### To View the Stream
+The videos are output to `scripts/videos`.
 
-```bash
-ffplay -fflags nobuffer -flags low_delay -framedrop -strict experimental -probesize 32 -analyzeduration 0 udp://127.0.0.1:5001?pkt_size=1316
-```
+### Warning
 
-Where port `5001` is derived according to the formula above.
+Do not advance the world tick with `world.tick()` in any other file.
 
-### To run YOLO model on the stream. Change the hardcoded camera ID as needed.
+## Sync Videos _to_ the Mininet VM
 
 ```bash
-python yolo_world5_camera.py
+# This command is run on the host.
+./scripts/mininet/push_video_to_mininet.sh
 ```
 
-This script needs to be debugged, the FPS is way too low. Maybe it is a HW limitation on my end.
+This will take the videos from `scripts/videos` and put it on `~/videos` on the Mininet VM.
 
-## Warning
-
-If you see the following error:
+## Run the wifi simulator and packet capture
 
 ```bash
-ffmpeg for camera 18 exited unexpectedly: [hevc_nvenc @ 0x64daa18f0900] OpenEncodeSessionEx failed: incompatible client key (21): (no details)
-[hevc_nvenc @ 0x64daa18f0900] No capable devices found
-Error initializing output stream 0:0 -- Error while opening encoder for output stream #0:0 - maybe incorrect parameters such as bit_rate, rate, width or height
-
-Stopping HEVC encoder for camera 18...
+# These commands are run inside the mininet vm.
+cd ~/M202A-CARLA
+sudo ./clean_mininet.sh
+sudo python two_stations_wifi.py
 ```
 
-This is a hardware limitation. NVENC supports a limited number of concurrent encoding sessions (often 2–3 on consumer GPUs, more on professional/server GPUs). After cameras 1–8, the remaining sessions fail with "No capable devices found". You can disable some cameras by commenting out lines in `CAMERA_CONFIGS`.
+The pcap files will be output to `~/M202A-CARLA/scripts/mininet/pcaps`.
 
-If we need more than ~9 cameras then we can fallback to software encoding instead of hardware acceleration. The issue is that the SW encoder might be slow and might also be resource heavy.
+## Copy PCAP files out of the Mininet VM
+
+```bash
+# This command is run on the host.
+./scripts/mininet/sync_mininet_files.sh
+```
+
+The pcap files will be in `scripts/mininet/pcaps`.
