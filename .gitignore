@@ -10,3 +10,4 @@ scripts/mininet/pcaps/*
 *tcpdump.log
 scripts/mininet/pcap_features/*
 scripts/mininet/video_features/*
+scripts/mininet/pcap_features_backup/*
