@@ -29,25 +29,30 @@ def extract_frame_features_from_pcap(pcap_path):
         pcap_path: Path to the pcap file
     
     Returns:
-        frame_features: numpy array of shape (num_frames, 6) containing:
+        frame_features: numpy array of shape (num_frames, 8) containing:
             - num_packets
             - sum_packet_length
             - packet_size_mean
             - packet_size_std
             - inter_arrival_time_mean
             - inter_arrival_time_std
+            - start_index (index in data_frames list)
+            - end_index (index in data_frames list)
     """
     # Load pcap file
     packets = rdpcap(pcap_path)
     
     if len(packets) == 0:
         raise RuntimeError(f"No packets found in {pcap_path}")
+    else:
+        print("len(packets) =", len(packets))
     
     # Find the first video transmission packet (802.11 data frame with larger size)
     first_video_packet = None
     first_video_timestamp = None
+    first_video_packet_index = None
     
-    for pkt in packets:
+    for idx, pkt in enumerate(packets):
         # Check if it's an 802.11 data frame (type == 2)
         if pkt.haslayer(Dot11):
             dot11 = pkt[Dot11]
@@ -57,19 +62,29 @@ def extract_frame_features_from_pcap(pcap_path):
                 if packet_size >= MIN_VIDEO_PACKET_SIZE:
                     first_video_packet = pkt
                     first_video_timestamp = float(pkt.time)
+                    first_video_packet_index = idx
+
+                    print()
+                    print()
+                    print("first packet: idx", idx)
+                    print("first packet:", pkt)
+                    print("first packet: pkt.time", pkt.time)
+                    print()
+                    print()
+
                     break
     
     if first_video_packet is None:
         raise RuntimeError(f"No video transmission packet found in {pcap_path}")
     
-    print(f"  Found first video packet at timestamp: {first_video_timestamp:.6f}")
+    print(f"  Found first video packet at timestamp: {first_video_timestamp:.6f}, index: {first_video_packet_index}")
     
     # Calculate frame time window
     frame_duration = 1.0 / FPS  # seconds per frame
     
     # Collect all 802.11 data frames with their timestamps and sizes
     data_frames = []
-    for pkt in packets:
+    for idx, pkt in enumerate(packets):
         # Check if it's an 802.11 data frame
         if pkt.haslayer(Dot11):
             dot11 = pkt[Dot11]
@@ -81,7 +96,8 @@ def extract_frame_features_from_pcap(pcap_path):
                     data_frames.append({
                         'timestamp': timestamp,
                         'size': packet_size,
-                        'relative_time': timestamp - first_video_timestamp
+                        'relative_time': timestamp - first_video_timestamp,
+                        'original_index': idx
                     })
     
     if len(data_frames) == 0:
@@ -90,16 +106,19 @@ def extract_frame_features_from_pcap(pcap_path):
     # Determine number of frames based on the last packet timestamp
     last_packet_time = data_frames[-1]['relative_time']
     num_frames = int(np.ceil(last_packet_time / frame_duration)) + 1
+
+    # code is correct until here
     
     print(f"  Processing {len(data_frames)} 802.11 data frames into {num_frames} frames")
     
-    # Initialize feature array: (num_frames, 6)
+    # Initialize feature array: (num_frames, 8)
     # Features: [num_packets, sum_packet_length, packet_size_mean, packet_size_std, 
-    #            inter_arrival_time_mean, inter_arrival_time_std]
-    frame_features = np.zeros((num_frames, 6), dtype=np.float32)
+    #            inter_arrival_time_mean, inter_arrival_time_std, start_index, end_index]
+    frame_features = np.zeros((num_frames, 8), dtype=np.float32)
     
-    # Initialize frame buckets to store packets
+    # Initialize frame buckets to store packets and track indices
     frame_packets = [[] for _ in range(num_frames)]
+    frame_indices = [[] for _ in range(num_frames)]  # Track indices in data_frames list
     
     # Group packets into frame buckets
     for i in range(len(data_frames)):
@@ -118,14 +137,17 @@ def extract_frame_features_from_pcap(pcap_path):
             'size': pkt['size'],
             'timestamp': pkt['timestamp']
         })
+        # Track the index in data_frames list
+        frame_indices[frame_idx].append(i)
     
     # Calculate features for each frame
     for frame_idx in range(num_frames):
         frame_pkt_list = frame_packets[frame_idx]
+        frame_idx_list = frame_indices[frame_idx]
         
         if len(frame_pkt_list) == 0:
-            # No packets in this frame - all features are 0
-            frame_features[frame_idx] = [0, 0, 0, 0, 0, 0]
+            # No packets in this frame - all features are 0, indices are -1
+            frame_features[frame_idx] = [0, 0, 0, 0, 0, 0, -1, -1]
         else:
             # Extract packet sizes and timestamps
             packet_sizes = [pkt['size'] for pkt in frame_pkt_list]
@@ -146,13 +168,19 @@ def extract_frame_features_from_pcap(pcap_path):
                 inter_arrival_time_mean = 0.0
                 inter_arrival_time_std = 0.0
             
+            # Get start and end indices for this bucket
+            start_index = min(frame_idx_list) if frame_idx_list else -1
+            end_index = max(frame_idx_list) if frame_idx_list else -1
+            
             frame_features[frame_idx] = [
                 num_packets,
                 sum_packet_length,
                 packet_size_mean,
                 packet_size_std,
                 inter_arrival_time_mean,
-                inter_arrival_time_std
+                inter_arrival_time_std,
+                start_index,
+                end_index
             ]
     
     return frame_features
@@ -207,6 +235,10 @@ def process_all_pcaps():
             import traceback
             traceback.print_exc()
             continue
+
+        # TODO: remove
+        print("Exiting...")
+        sys.exit(0)
     
     print("All pcap files processed!")
 
