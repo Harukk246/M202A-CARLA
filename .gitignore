@@ -11,3 +11,4 @@ scripts/mininet/pcaps/*
 scripts/mininet/pcap_features/*
 scripts/mininet/video_features/*
 scripts/mininet/pcap_features_backup/*
+scripts/mininet/dataset/*
