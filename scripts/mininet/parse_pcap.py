@@ -96,6 +96,7 @@ def extract_frame_features_from_pcap(pcap_path):
                     data_frames.append({
                         'timestamp': timestamp,
                         'size': packet_size,
+                        'absolute_time': timestamp,
                         'relative_time': timestamp - first_video_timestamp,
                         'original_index': idx
                     })
@@ -105,12 +106,15 @@ def extract_frame_features_from_pcap(pcap_path):
     
     # Determine number of frames based on the last packet timestamp
     last_packet_time = data_frames[-1]['relative_time']
-    num_frames = int(np.ceil(last_packet_time / frame_duration)) + 1
 
-    # code is correct until here
+    # account for the fact we have a packet 0 by adding 1
+    num_frames = int(np.ceil(last_packet_time / frame_duration)) + 1
     
-    print(f"  Processing {len(data_frames)} 802.11 data frames into {num_frames} frames")
-    
+    print(f"  Processing {len(data_frames)} 802.11 data frames into {num_frames} frames")    
+    print("last relative timestamp, effective duration in sec:", data_frames[-1]['absolute_time'] - first_video_timestamp)
+
+    # ======== code is correct until here =========
+
     # Initialize feature array: (num_frames, 8)
     # Features: [num_packets, sum_packet_length, packet_size_mean, packet_size_std, 
     #            inter_arrival_time_mean, inter_arrival_time_std, start_index, end_index]
@@ -138,7 +142,7 @@ def extract_frame_features_from_pcap(pcap_path):
             'timestamp': pkt['timestamp']
         })
         # Track the index in data_frames list
-        frame_indices[frame_idx].append(i)
+        frame_indices[frame_idx].append(pkt['original_index'])
     
     # Calculate features for each frame
     for frame_idx in range(num_frames):

@@ -1,0 +1,15 @@
+first packet = 1764458565.328414
+
+last packet = 1764459082.726003000
+
+
+first packet = 0
+
+last packet = 517 seconds
+
+time = 8.6 mins = 8 mins and 37 seconds
+
+real time = 8 min and 38 seconds
+
+actual number of frames in mp4: 10362
+actual seconds in mp4: 518.1
