@@ -4,6 +4,7 @@ from scapy.layers.dot11 import Dot11
 import os
 from pathlib import Path
 import sys
+from tqdm import tqdm
 
 # Add parent directory to path to import util
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -84,7 +85,7 @@ def extract_frame_features_from_pcap(pcap_path):
     
     # Collect all 802.11 data frames with their timestamps and sizes
     data_frames = []
-    for idx, pkt in enumerate(packets):
+    for idx, pkt in enumerate(tqdm(packets, desc="Collecting 802.11 data frames", leave=False)):
         # Check if it's an 802.11 data frame
         if pkt.haslayer(Dot11):
             dot11 = pkt[Dot11]
@@ -106,9 +107,7 @@ def extract_frame_features_from_pcap(pcap_path):
     
     # Determine number of frames based on the last packet timestamp
     last_packet_time = data_frames[-1]['relative_time']
-
-    # account for the fact we have a packet 0 by adding 1
-    num_frames = int(np.ceil(last_packet_time / frame_duration)) + 1
+    num_frames = int(np.ceil(last_packet_time / frame_duration))
     
     print(f"  Processing {len(data_frames)} 802.11 data frames into {num_frames} frames")    
     print("last relative timestamp, effective duration in sec:", data_frames[-1]['absolute_time'] - first_video_timestamp)
@@ -125,7 +124,7 @@ def extract_frame_features_from_pcap(pcap_path):
     frame_indices = [[] for _ in range(num_frames)]  # Track indices in data_frames list
     
     # Group packets into frame buckets
-    for i in range(len(data_frames)):
+    for i in tqdm(range(len(data_frames)), desc="Grouping packets into frames", leave=False):
         pkt = data_frames[i]
         relative_time = pkt['relative_time']
         
@@ -145,7 +144,7 @@ def extract_frame_features_from_pcap(pcap_path):
         frame_indices[frame_idx].append(pkt['original_index'])
     
     # Calculate features for each frame
-    for frame_idx in range(num_frames):
+    for frame_idx in tqdm(range(num_frames), desc="Calculating frame features", leave=False):
         frame_pkt_list = frame_packets[frame_idx]
         frame_idx_list = frame_indices[frame_idx]
         
