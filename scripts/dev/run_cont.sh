@@ -2,6 +2,8 @@
 
 AUTOCOMMIT="${1:-}"
 
+xhost +local:docker
+
 docker start -ai slow-pylot
 
 NEW_TAG="slow-pylot:$(date +%Y%m%d-%H%M)"

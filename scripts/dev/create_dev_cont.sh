@@ -3,6 +3,8 @@ set -euo pipefail
 
 AUTOCOMMIT="${1:-}"
 
+xhost +local:docker
+
 # Let container talk to your X server (you already ran xhost on the host)
 : "${DISPLAY:=${DISPLAY:-:0}}"
 
