@@ -6,6 +6,7 @@ import argparse
 import os
 import signal
 from behavior_agent import BehaviorAgent
+from util import FPS
 
 def handle_sigterm(signum, frame):
     raise KeyboardInterrupt  # convert SIGTERM into KeyboardInterrupt
@@ -105,7 +106,7 @@ def main():
     # -------------------------------------------
     settings = world.get_settings()
     settings.synchronous_mode = True  # Enable sync mode
-    settings.fixed_delta_seconds = 1.0 / 30.0  # 30 fps world 
+    settings.fixed_delta_seconds = 1.0 / FPS 
     world.apply_settings(settings)
 
     # -----------------------------
