@@ -10,7 +10,7 @@ from tqdm import tqdm
 # ----------------------------
 
 VIDEOS_DIR = "/home/ubuntu/M202A-CARLA/scripts/videos"
-YOLO_MODEL = "/home/ubuntu/M202A-CARLA/scripts/yolov8n.pt"   # COCO-pretrained
+YOLO_MODEL = "/home/ubuntu/M202A-CARLA/scripts/yolov8x.pt"   # COCO-pretrained
 CONF_THRESH = 0.5           # detection confidence threshold
 OUTPUT_DIR = "/home/ubuntu/M202A-CARLA/scripts/mininet/video_features"
 
@@ -84,7 +84,9 @@ def process_all_videos():
     # Load YOLO model once
     print(f"Loading YOLO model from {YOLO_MODEL}...")
     model = YOLO(YOLO_MODEL)
+    # model.to("cuda:0")
     print("Model loaded successfully.")
+    print("device:", model.device)
     
     # Get all video files
     video_dir = Path(VIDEOS_DIR)
