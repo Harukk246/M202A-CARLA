@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from scripts.mininet.model import BiLSTMRegressor, DEVICE, WINDOW_SIZE, DATASET_DIR
+from model import BiLSTMRegressor, DEVICE, WINDOW_SIZE, DATASET_DIR
 
 DEFAULT_MODEL_PATH = DATASET_DIR / "bilstm_regressor.pt"
 
