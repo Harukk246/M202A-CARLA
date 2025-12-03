@@ -38,6 +38,9 @@ OUTPUT_PATH = None
 # Packet filtering / window parameters
 MIN_VIDEO_PACKET_SIZE = 1000  # Minimum packet size to consider as video transmission packet
 WINDOW_SIZE_SECONDS = 1.0  # Sliding window size in seconds
+# Hardcoded threshold used to identify and remove outlier windows based on total size.
+# Any window with total_size > OUTLIER_THRESHOLD_BYTES will be omitted.
+OUTLIER_THRESHOLD_BYTES = 200000
 
 
 def load_pcap_data(pcap_path):
@@ -198,6 +201,23 @@ def main():
         data_frames,
         window_size=WINDOW_SIZE_SECONDS,
     )
+
+    # Compute mean total_size across all windows (for reporting)
+    total_sizes_all = np.array([w["total_size"] for w in window_totals], dtype=float)
+    mean_total_size = float(total_sizes_all.mean()) if len(total_sizes_all) > 0 else 0.0
+    print(f"Mean window total size: {mean_total_size:.2f} bytes")
+
+    # Filter outlier windows whose total_size exceeds the hardcoded threshold.
+    if OUTLIER_THRESHOLD_BYTES is not None:
+        filtered_window_totals = [
+            w for w in window_totals if w["total_size"] <= OUTLIER_THRESHOLD_BYTES
+        ]
+        num_removed = len(window_totals) - len(filtered_window_totals)
+        print(
+            f"Filtering out {num_removed} outlier windows "
+            f"(threshold = {OUTLIER_THRESHOLD_BYTES} bytes)"
+        )
+        window_totals = filtered_window_totals
 
     # Prepare data for CSV and plotting
     frames = np.array([w["frame"] for w in window_totals], dtype=int)
