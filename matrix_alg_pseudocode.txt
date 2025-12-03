@@ -1,0 +1,74 @@
+# assume these are sorted by timestamp
+edge_cam_data = [[frame_num, location, car id], [frame_num, location, car id]...]
+inner_cam_data = [[frame_num, location], [frame_num, location]...]
+    
+class Car_KF:
+    known_position
+    known_confidence
+
+    pred_position
+    pred_confidence
+
+    curr_position
+    curr_confidence
+
+    predict()
+        calculate pred_current_position
+        calculate pred_confidence
+
+        curr_position = pred_current_position
+        curr_confidence = pred_confidence 
+
+    update()
+        calculate known_position
+        calculate known_confidence
+
+        curr_position = known_position
+        curr_confidence = known_confidence
+        
+
+main:
+    CURR_STATE = { 
+        car_1: Car_KF, 
+        car_2: Car_KF, 
+        ....
+    } # in implementation, starts empty {}
+
+    for each curr_frame in video_frames: 
+
+        # update car positions every frame, whether there was an event or not
+        for each Car_KF in CURR_STATE
+            car.KF.predict()
+
+        EVENT = None
+        # case inner event at current frame
+        if inner_cam_data[0].frame_num == curr_frame:
+            inner_event = inner_cam_data[0]
+
+            event_Car_KF = identify_event(CURR_STATE, inner_event)
+            output "event at {curr_frame} was triggered by car {event_car_id}"
+
+            eventCar = get Car_KF with id event_car_id
+            eventCar.KF.update(inner_event_location)
+
+        # case edge event at current frame
+        if edge_cam_data[0].frame_num == curr_frame: 
+            edge_event = edge_cam_data[0]
+
+            if eventCar in CURR_STATE:
+                remove eventCar from CURR_STATE # car exited
+                output "car {eventCar.id} exited at location {edge_event.location}"
+            else: 
+                add a new Car_KF initialized to {edge_event.location} to CURR_STATE
+
+identify_event(event_location):
+
+    cost[] 
+    for car in CURR_STATE: 
+        cost[car_id] = distance_between(car, event_location)
+    
+    return Car_KF with lowest cost # hungarian algorithm step, but only one event so it's just min of a vector
+
+
+
+        
