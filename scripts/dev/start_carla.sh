@@ -29,4 +29,4 @@ else
     sleep 5
 fi
 
-python ../load_town5.py
+python load_town5.py
