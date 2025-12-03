@@ -1,8 +1,10 @@
 # assume these are sorted by timestamp
 edge_cam_data = [[frame_num, location, car id], [frame_num, location, car id]...]
 inner_cam_data = [[frame_num, location], [frame_num, location]...]
-    
+
 class Car_KF:
+    car_id
+
     known_position
     known_confidence
 
@@ -19,7 +21,7 @@ class Car_KF:
         curr_position = pred_current_position
         curr_confidence = pred_confidence 
 
-    update()
+    update(location)
         calculate known_position
         calculate known_confidence
 
@@ -29,8 +31,8 @@ class Car_KF:
 
 main:
     CURR_STATE = { 
-        car_1: Car_KF, 
-        car_2: Car_KF, 
+        car_1: Car_KF,
+        car_2: Car_KF,
         ....
     } # in implementation, starts empty {}
 
@@ -42,7 +44,7 @@ main:
 
         EVENT = None
         # case inner event at current frame
-        if inner_cam_data[0].frame_num == curr_frame:
+        while inner_cam_data[0].frame_num == curr_frame:
             inner_event = inner_cam_data[0]
 
             event_Car_KF = identify_event(CURR_STATE, inner_event)
@@ -52,7 +54,7 @@ main:
             eventCar.KF.update(inner_event_location)
 
         # case edge event at current frame
-        if edge_cam_data[0].frame_num == curr_frame: 
+        while edge_cam_data[0].frame_num == curr_frame: 
             edge_event = edge_cam_data[0]
 
             if eventCar in CURR_STATE:
@@ -62,8 +64,7 @@ main:
                 add a new Car_KF initialized to {edge_event.location} to CURR_STATE
 
 identify_event(event_location):
-
-    cost[] 
+    cost = [] 
     for car in CURR_STATE: 
         cost[car_id] = distance_between(car, event_location)
     
