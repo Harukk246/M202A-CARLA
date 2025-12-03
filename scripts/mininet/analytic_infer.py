@@ -19,6 +19,7 @@ import os
 import sys
 from pathlib import Path
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 # Add parent directory to path to import util
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -31,17 +32,12 @@ from util import FPS
 # Pcap file to analyze
 PCAP_PATH = "/home/ubuntu/M202A-CARLA/scripts/mininet/test_pcaps/TEST_camera_25.pcap"
 
-# Output path for detection results (None = auto-generate from pcap name)
+# Output base path for results (None = auto-generate from pcap name)
 OUTPUT_PATH = None
 
-# Detection parameters
+# Packet filtering / window parameters
 MIN_VIDEO_PACKET_SIZE = 1000  # Minimum packet size to consider as video transmission packet
 WINDOW_SIZE_SECONDS = 1.0  # Sliding window size in seconds
-BASELINE_WINDOW_SECONDS = 5.0  # Initial window to establish baseline (static background)
-PACKET_COUNT_THRESHOLD_MULTIPLIER = 1.5  # Threshold = baseline_mean * multiplier
-PACKET_SIZE_THRESHOLD_MULTIPLIER = 1.5  # Threshold = baseline_mean * multiplier
-MIN_DETECTION_DURATION_SECONDS = 0.5  # Minimum duration to consider as valid detection
-SKIP_INITIAL_PACKETS = 1000  # Number of initial packets to skip in analysis
 
 
 def load_pcap_data(pcap_path):
@@ -66,20 +62,12 @@ def load_pcap_data(pcap_path):
     
     print(f"Loaded {len(packets)} total packets from {pcap_path}")
     
-    # Skip initial packets
-    start_index = SKIP_INITIAL_PACKETS
-    if start_index >= len(packets):
-        raise RuntimeError(f"Cannot skip {start_index} packets - only {len(packets)} packets available")
-    
-    print(f"Skipping first {start_index} packets in analysis")
-    packets_to_analyze = packets[start_index:]
-    
     # Find the first video transmission packet (802.11 data frame with larger size)
     first_video_packet = None
     first_video_timestamp = None
     first_video_packet_index = None
     
-    for idx, pkt in enumerate(packets_to_analyze):
+    for idx, pkt in enumerate(packets):
         # Check if it's an 802.11 data frame (type == 2)
         if pkt.haslayer(Dot11):
             dot11 = pkt[Dot11]
@@ -89,7 +77,7 @@ def load_pcap_data(pcap_path):
                 if packet_size >= MIN_VIDEO_PACKET_SIZE:
                     first_video_packet = pkt
                     first_video_timestamp = float(pkt.time)
-                    first_video_packet_index = idx + start_index  # Adjust index to account for skipped packets
+                    first_video_packet_index = idx
                     break
     
     if first_video_packet is None:
@@ -99,7 +87,7 @@ def load_pcap_data(pcap_path):
     
     # Collect all 802.11 data frames with their timestamps and sizes
     data_frames = []
-    for idx, pkt in enumerate(tqdm(packets_to_analyze, desc="Collecting 802.11 data frames", leave=False)):
+    for idx, pkt in enumerate(tqdm(packets, desc="Collecting 802.11 data frames", leave=False)):
         # Check if it's an 802.11 data frame
         if pkt.haslayer(Dot11):
             dot11 = pkt[Dot11]
@@ -112,7 +100,7 @@ def load_pcap_data(pcap_path):
                         'timestamp': timestamp,
                         'size': packet_size,
                         'relative_time': timestamp - first_video_timestamp,
-                        'original_index': idx + start_index  # Adjust index to account for skipped packets
+                        'original_index': idx
                     })
     
     if len(data_frames) == 0:
@@ -152,233 +140,97 @@ def compute_window_metrics(data_frames, window_start_time, window_end_time):
     return packet_count, total_size, avg_packet_size
 
 
-def establish_baseline(data_frames, baseline_duration, window_size):
+def compute_window_totals(data_frames, window_size):
     """
-    Establish baseline metrics from initial static background period.
-    
+    Compute total packet size for each sliding time window.
+
     Args:
         data_frames: List of packet dicts
-        baseline_duration: Duration in seconds to use for baseline
         window_size: Size of each window in seconds
-    
-    Returns:
-        baseline_packet_count_mean: Mean packet count per window
-        baseline_packet_count_std: Std of packet count per window
-        baseline_total_size_mean: Mean total size per window
-        baseline_total_size_std: Std of total size per window
-    """
-    baseline_windows = []
-    
-    # Sample windows from the baseline period
-    num_baseline_windows = int(baseline_duration / window_size)
-    
-    for i in range(num_baseline_windows):
-        window_start = i * window_size
-        window_end = window_start + window_size
-        
-        packet_count, total_size, _ = compute_window_metrics(
-            data_frames, window_start, window_end
-        )
-        
-        baseline_windows.append({
-            'packet_count': packet_count,
-            'total_size': total_size
-        })
-    
-    if len(baseline_windows) == 0:
-        raise RuntimeError("Could not establish baseline - no windows in baseline period")
-    
-    packet_counts = [w['packet_count'] for w in baseline_windows]
-    total_sizes = [w['total_size'] for w in baseline_windows]
-    
-    baseline_packet_count_mean = np.mean(packet_counts)
-    baseline_packet_count_std = np.std(packet_counts)
-    baseline_total_size_mean = np.mean(total_sizes)
-    baseline_total_size_std = np.std(total_sizes)
-    
-    print(f"\nBaseline established from {num_baseline_windows} windows:")
-    print(f"  Packet count: mean={baseline_packet_count_mean:.2f}, std={baseline_packet_count_std:.2f}")
-    print(f"  Total size: mean={baseline_total_size_mean:.2f}, std={baseline_total_size_std:.2f}")
-    
-    return (
-        baseline_packet_count_mean,
-        baseline_packet_count_std,
-        baseline_total_size_mean,
-        baseline_total_size_std
-    )
 
-
-def detect_cars_with_thresholding(data_frames, window_size, baseline_duration, 
-                                  packet_count_multiplier, packet_size_multiplier,
-                                  min_detection_duration, output_path=None):
-    """
-    Detect cars by thresholding packet activity over sliding windows.
-    
-    Args:
-        data_frames: List of packet dicts
-        window_size: Size of sliding window in seconds
-        baseline_duration: Duration in seconds to use for baseline
-        packet_count_multiplier: Multiplier for packet count threshold
-        packet_size_multiplier: Multiplier for packet size threshold
-        min_detection_duration: Minimum duration for valid detection
-        output_path: Optional path to save detection results
-    
     Returns:
-        detections: List of (start_time, end_time) tuples for detected car periods
+        window_totals: list of dicts with:
+            - frame: integer window index (0-based)
+            - start_time: window start time (seconds, relative)
+            - end_time: window end time (seconds, relative)
+            - total_size: total packet size (bytes) in the window
     """
     total_duration = data_frames[-1]['relative_time']
-    
-    # Establish baseline from initial period (assumed to be static background)
-    baseline_duration = min(baseline_duration, total_duration * 0.2)  # Use up to 20% of total duration
-    print(f"\nEstablishing baseline from first {baseline_duration:.2f} seconds...")
-    
-    (
-        baseline_packet_count_mean,
-        baseline_packet_count_std,
-        baseline_total_size_mean,
-        baseline_total_size_std
-    ) = establish_baseline(data_frames, baseline_duration, window_size)
-    
-    # Set thresholds
-    packet_count_threshold = baseline_packet_count_mean * packet_count_multiplier
-    total_size_threshold = baseline_total_size_mean * packet_size_multiplier
-    
-    print(f"\nThresholds:")
-    print(f"  Packet count threshold: {packet_count_threshold:.2f}")
-    print(f"  Total size threshold: {total_size_threshold:.2f}")
-    
-    # Slide window over entire duration
     num_windows = int(np.ceil(total_duration / window_size))
-    window_metrics = []
-    
-    print(f"\nAnalyzing {num_windows} windows...")
-    for i in tqdm(range(num_windows), desc="Computing window metrics"):
+
+    window_totals = []
+    print(f"\nComputing totals for {num_windows} windows...")
+
+    for i in tqdm(range(num_windows), desc="Computing window totals"):
         window_start = i * window_size
         window_end = min(window_start + window_size, total_duration)
-        
-        packet_count, total_size, avg_packet_size = compute_window_metrics(
+
+        _, total_size, _ = compute_window_metrics(
             data_frames, window_start, window_end
         )
-        
-        window_metrics.append({
-            'start_time': window_start,
-            'end_time': window_end,
-            'packet_count': packet_count,
-            'total_size': total_size,
-            'avg_packet_size': avg_packet_size,
-            'exceeds_packet_count_threshold': packet_count > packet_count_threshold,
-            'exceeds_size_threshold': total_size > total_size_threshold
-        })
-    
-    # Detect periods where thresholds are exceeded
-    # A car is detected if either packet count OR total size exceeds threshold
-    active_detections = []
-    detections = []
-    
-    for i, metrics in enumerate(window_metrics):
-        is_active = (metrics['exceeds_packet_count_threshold'] or 
-                     metrics['exceeds_size_threshold'])
-        
-        if is_active:
-            if not active_detections:
-                # Start of new detection period
-                active_detections.append(i)
-        else:
-            if active_detections:
-                # End of detection period
-                start_idx = active_detections[0]
-                end_idx = i - 1
-                
-                start_time = window_metrics[start_idx]['start_time']
-                end_time = window_metrics[end_idx]['end_time']
-                duration = end_time - start_time
-                
-                # Only keep detections that last at least min_detection_duration
-                if duration >= min_detection_duration:
-                    detections.append((start_time, end_time))
-                
-                active_detections = []
-    
-    # Handle case where detection extends to end of data
-    if active_detections:
-        start_idx = active_detections[0]
-        start_time = window_metrics[start_idx]['start_time']
-        end_time = window_metrics[-1]['end_time']
-        duration = end_time - start_time
-        
-        if duration >= min_detection_duration:
-            detections.append((start_time, end_time))
-    
-    # Print results
-    print(f"\n{'='*60}")
-    print(f"Detection Results:")
-    print(f"{'='*60}")
-    print(f"Total detections: {len(detections)}")
-    
-    if len(detections) > 0:
-        print(f"\nDetected car periods:")
-        for i, (start, end) in enumerate(detections, 1):
-            duration = end - start
-            print(f"  {i}. Time: {start:.2f}s - {end:.2f}s (duration: {duration:.2f}s)")
-    else:
-        print("\nNo cars detected.")
-    
-    # Save results if output path provided
-    if output_path:
-        output_path = Path(output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Save detections as text file
-        with open(output_path, 'w') as f:
-            f.write(f"# Car Detection Results\n")
-            f.write(f"# Total detections: {len(detections)}\n")
-            f.write(f"# Format: start_time(s) end_time(s) duration(s)\n")
-            f.write(f"# Thresholds: packet_count={packet_count_threshold:.2f}, total_size={total_size_threshold:.2f}\n\n")
-            
-            for start, end in detections:
-                duration = end - start
-                f.write(f"{start:.6f} {end:.6f} {duration:.6f}\n")
-        
-        # Also save window metrics for analysis
-        metrics_path = output_path.with_suffix('.metrics.txt')
-        with open(metrics_path, 'w') as f:
-            f.write("# Window Metrics\n")
-            f.write("# Format: start_time(s) end_time(s) packet_count total_size avg_packet_size exceeds_packet_count exceeds_size\n")
-            for m in window_metrics:
-                f.write(f"{m['start_time']:.6f} {m['end_time']:.6f} "
-                       f"{m['packet_count']} {m['total_size']} {m['avg_packet_size']:.2f} "
-                       f"{int(m['exceeds_packet_count_threshold'])} {int(m['exceeds_size_threshold'])}\n")
-        
-        print(f"\nResults saved to: {output_path}")
-        print(f"Window metrics saved to: {metrics_path}")
-    
-    return detections
+
+        window_totals.append(
+            {
+                "frame": i,
+                "start_time": window_start,
+                "end_time": window_end,
+                "total_size": total_size,
+            }
+        )
+
+    return window_totals
 
 
 def main():
-    # Set output path
+    # Set base output path (used for both CSV and plot)
     pcap_path = Path(PCAP_PATH)
     if OUTPUT_PATH is None:
-        output_path = pcap_path.parent / f"{pcap_path.stem}_detections.txt"
+        base_output_path = pcap_path.parent / f"{pcap_path.stem}_window_totals"
     else:
-        output_path = Path(OUTPUT_PATH)
+        base_output_path = Path(OUTPUT_PATH)
     
     # Load pcap data
     print(f"Loading pcap file: {pcap_path}")
     data_frames, first_video_timestamp = load_pcap_data(pcap_path)
-    
-    # Detect cars
-    detections = detect_cars_with_thresholding(
+
+    # Compute total packet size for each time window
+    window_totals = compute_window_totals(
         data_frames,
         window_size=WINDOW_SIZE_SECONDS,
-        baseline_duration=BASELINE_WINDOW_SECONDS,
-        packet_count_multiplier=PACKET_COUNT_THRESHOLD_MULTIPLIER,
-        packet_size_multiplier=PACKET_SIZE_THRESHOLD_MULTIPLIER,
-        min_detection_duration=MIN_DETECTION_DURATION_SECONDS,
-        output_path=output_path
     )
-    
-    print(f"\nAnalysis complete!")
+
+    # Prepare data for CSV and plotting
+    frames = np.array([w["frame"] for w in window_totals], dtype=int)
+    total_sizes = np.array([w["total_size"] for w in window_totals], dtype=int)
+
+    # Save CSV: frame, total_size_bytes
+    csv_path = base_output_path.with_suffix(".csv")
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    csv_data = np.column_stack((frames, total_sizes))
+    np.savetxt(
+        csv_path,
+        csv_data,
+        delimiter=",",
+        header="frame,total_size_bytes",
+        comments="",
+        fmt=["%d", "%d"],
+    )
+    print(f"CSV saved to: {csv_path}")
+
+    # Create and save plot: frame number vs total packet size
+    plot_path = base_output_path.with_suffix(".png")
+    plt.figure(figsize=(10, 4))
+    plt.plot(frames, total_sizes, marker="o", linestyle="-")
+    plt.xlabel("Frame (window index)")
+    plt.ylabel("Total packet size (bytes)")
+    plt.title("Total packet size per window")
+    plt.grid(True, linestyle="--", alpha=0.5)
+    plt.tight_layout()
+    plt.savefig(plot_path)
+    plt.close()
+    print(f"Plot saved to: {plot_path}")
+
+    print("\nAnalysis complete!")
 
 
 if __name__ == "__main__":
