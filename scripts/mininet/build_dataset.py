@@ -37,6 +37,7 @@ def preprocess_feature_pairs() -> None:
                 f"({video.shape[0]} vs {target_rows})."
             )
 
+        # assume Y is always larger than X, so we can slice Y to the same length as X
         y = video[:target_rows]
 
         # Remove first 500 elements from both X and y
