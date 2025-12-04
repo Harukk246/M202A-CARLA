@@ -26,7 +26,7 @@ def preprocess_feature_pairs() -> None:
         pcap = np.load(pcap_files[camera])
         video = np.load(video_files[camera])
 
-        X = pcap
+        X = pcap[:, (0,1,3)] # pkt count, total pkt size, pkt std dev
         target_rows = X.shape[0]
 
         if video.ndim == 1:
@@ -38,6 +38,14 @@ def preprocess_feature_pairs() -> None:
             )
 
         y = video[:target_rows]
+
+        # Remove first 500 elements from both X and y
+        # get rid of networking noise at the beginning
+        X = X[500:]
+        y = y[500:]
+
+        # Standardize X: zero mean and unit variance
+        X = (X - X.mean(axis=0)) / X.std(axis=0)
 
         print(f"{camera}: X shape {X.shape}, y shape {y.shape}")
 
