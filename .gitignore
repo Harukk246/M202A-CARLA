@@ -20,3 +20,4 @@ scripts/test_videos/TEST_camera_25_frame_sizes.png
 scripts/test_videos/TEST_camera_25_frames.csv
 scripts/test_videos/TEST_camera_25_frames.txt
 scripts/mininet/video_features_backup
+global_label_test_videos/

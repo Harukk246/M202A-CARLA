@@ -8,12 +8,13 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 import torchvision.transforms as T
+import json
 
-PATH_4 = "/home/ubuntu/M202A-CARLA/scripts/videos/camera_4.mp4"
-PATH_5 = "/home/ubuntu/M202A-CARLA/scripts/videos/camera_5.mp4"
+PATH_4 = "/home/ubuntu/M202A-CARLA/scripts/global_label_test_videos/camera_4.mp4"
+PATH_5 = "/home/ubuntu/M202A-CARLA/scripts/global_label_test_videos/camera_5.mp4"
 
-OUTPUT_4_PATH = "/home/ubuntu/M202A-CARLA/scripts/videos/camera_5_input.npy"
-OUTPUT_5_PATH = "/home/ubuntu/M202A-CARLA/scripts/videos/camera_5_input.npy"
+OUTPUT_4_PATH = "/home/ubuntu/M202A-CARLA/scripts/global_label_test_videos/camera_4_input.json"
+OUTPUT_5_PATH = "/home/ubuntu/M202A-CARLA/scripts/global_label_test_videos/camera_5_input.json"
 
 COLOR = (0, 255, 0) # green for active tracking
 
@@ -201,19 +202,15 @@ def main() -> None:
     # WARNING: THIS VALUE IS EXTREMELY SENSITIVE
     global_tracker = GlobalAppearanceTracker(sim_threshold=0.85)
 
-    '''
-    Output of this script can look like:
-    per camera:
-
-    the vector index implicitly serves as the frame index
-    [0|1 for if car detected, [pos/vel of cars], [id of cars]]
-    '''
+    # ---------------------------------------------------------------
+    # MAIN LOOP BEGIN ===============================================
+    # ---------------------------------------------------------------
 
     frame_idx = 0
     camera_4_output = []
     camera_5_output = []
 
-    # DEBUG:
+    # DEBUG: can comment these lines out for faster processing
     cv2.namedWindow("camera_4", cv2.WINDOW_NORMAL)
     cv2.namedWindow("camera_5", cv2.WINDOW_NORMAL)
 
@@ -281,6 +278,7 @@ def main() -> None:
                     # DEBUG: cv2.imshow("cropped_vehicle", crop)  # visualize the most recent crop
                     emb = extract_embedding(reid_model, device, crop)
 
+                    # get resnet embedding, bounding box, and local bytetrack id
                     dets_cam4.append((emb, [x1, y1, x2, y2], track_id))
 
                     # DEBUG: show green identification rectangle
@@ -317,6 +315,7 @@ def main() -> None:
                     # DEBUG: cv2.imshow("cropped_vehicle", crop)  # visualize the most recent crop
                     emb = extract_embedding(reid_model, device, crop)
 
+                    # get resnet embedding, bounding box, and local bytetrack id
                     dets_cam5.append((emb, [x1, y1, x2, y2], track_id))
 
                     # DEBUG: show green identification rectangle
@@ -325,6 +324,7 @@ def main() -> None:
         # ----------------------------------------
         # 3) Global ID assignment (appearance-only)
         # ----------------------------------------
+        
         if dets_cam4:
             emb4   = [e for (e, b, tid) in dets_cam4]
             box4   = [b for (e, b, tid) in dets_cam4]
@@ -333,8 +333,9 @@ def main() -> None:
                 emb4, camera_id=4, frame_idx=frame_idx, bboxes=box4, local_ids=lid4
             )
         else:
+            lid4 = []
             global_ids4 = []
-
+        
         if dets_cam5:
             emb5   = [e for (e, b, tid) in dets_cam5]
             box5   = [b for (e, b, tid) in dets_cam5]
@@ -343,28 +344,87 @@ def main() -> None:
                 emb5, camera_id=5, frame_idx=frame_idx, bboxes=box5, local_ids=lid5
             )
         else:
+            lid5 = []
             global_ids5 = []
 
-        print("global_ids4:", global_ids4, "global_ids5", global_ids5)
+        # ----------------------------------------
+        # 4) Preprare for output generation
+        # ----------------------------------------
 
+        '''
+        Output of this script can look like:
+        per camera:
+
+        the vector index implicitly serves as the frame index
+        [0|1 for if car detected, [pos/vel of cars], [id of cars]]
+        '''
+
+        camera_4_output_frame = {
+            'frame': frame_idx,
+            'car_detected': True if any(global_ids4) else False,
+            'cars': []
+        }
+
+        # If this frame has any global detections, append entries to `cars`
+        # with global_id, local_id, and placeholder xyz position [0, 0, 0].
+        if any(global_ids4):
+            for local_id, global_id in zip(lid4, global_ids4):
+                if global_id is None:
+                    continue
+                camera_4_output_frame['cars'].append({
+                    'global_id': int(global_id),
+                    'local_id': int(local_id),
+                    'position': [0.0, 0.0, 0.0], # TODO: fill this code in from camera.py
+                })
+
+        camera_4_output.append(camera_4_output_frame)
+
+        camera_5_output_frame = {
+            'frame': frame_idx,
+            'car_detected': True if any(global_ids5) else False,
+            'cars': []
+        }
+
+        # If this frame has any global detections, append entries to `cars`
+        # with global_id, local_id, and placeholder xyz position [0, 0, 0].
+        if any(global_ids5):
+            for local_id, global_id in zip(lid5, global_ids5):
+                if global_id is None:
+                    continue
+                camera_5_output_frame['cars'].append({
+                    'global_id': int(global_id),
+                    'local_id': int(local_id),
+                    'position': [0.0, 0.0, 0.0], # TODO: fill this code in from camera.py
+                })
+
+        camera_5_output.append(camera_5_output_frame)
+
+        # DEBUG: can comment these lines out for faster processing
+        print("frame:", frame_idx, "global_ids4:", global_ids4, "global_ids5", global_ids5)
         cv2.imshow("camera_4", frame4)
         cv2.imshow("camera_5", frame5)
 
         frame_idx += 1
 
-        # ~30 FPS, quit both with 'q'
+        # DEBUG: can comment these lines out for faster processing
         key = cv2.waitKey(33) & 0xFF
         if key == ord("q"):
             break
 
-    # cleanup operations
+    # ----------------------------------------
+    # 45) Cleanup operations and save data
+    # ----------------------------------------
 
-    
+    with open(OUTPUT_4_PATH, "w") as f:
+        json.dump(camera_4_output, f, indent=2)
 
+    with open(OUTPUT_5_PATH, "w") as f:
+        json.dump(camera_5_output, f, indent=2)
+
+    # DEBUG: can comment these lines out for faster processing
     cap4.release()
     cap5.release()
     cv2.destroyAllWindows()
-
 
 if __name__ == "__main__":
     main()
