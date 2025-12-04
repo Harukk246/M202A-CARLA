@@ -23,15 +23,6 @@ COLOR_MAP = {
     "magenta":  "255,0,255",
     "white":    "255,255,255",
     "black":    "0,0,0",
-    "orange":   "255,165,0",
-    "purple":   "128,0,128",
-    "pink":     "255,192,203",
-    "gray":     "128,128,128",
-    "brown":    "139,69,19",
-    "lime":     "0,255,0",
-    "teal":     "0,128,128",
-    "navy":     "0,0,128",
-    "olive":    "128,128,0",
 }
 VALID_COLOR_NAMES = ", ".join(COLOR_MAP.keys())
 
