@@ -1,6 +1,6 @@
 #!/bin/bash
 
-COLORS=("red" "green" "blue" "yellow" "cyan" "magenta" "white" "black" "orange" "purple" "pink" "gray" "brown" "lime" "teal" "navy" "olive")
+COLORS=("red" "green" "blue" "yellow" "cyan" "magenta" "white" "black")
 SHUFFLED_COLORS=($(printf "%s\n" "${COLORS[@]}" | shuf))
 
 

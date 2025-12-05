@@ -5,6 +5,8 @@ inner_cam_data = [[frame_num, location], [frame_num, location]...]
 class Car_KF:
     car_id
 
+    # add velocity to KF but only really output position
+
     known_position
     known_confidence
 
@@ -53,6 +55,8 @@ main:
             eventCar = get Car_KF with id event_car_id
             eventCar.KF.update(inner_event_location)
 
+            inner_cam_data.pop()
+
         # case edge event at current frame
         while edge_cam_data[0].frame_num == curr_frame: 
             edge_event = edge_cam_data[0]
@@ -62,11 +66,13 @@ main:
                 output "car {eventCar.id} exited at location {edge_event.location}"
             else: 
                 add a new Car_KF initialized to {edge_event.location} to CURR_STATE
+            
+            outer_cam_data.pop()
 
 identify_event(event_location):
     cost = [] 
     for car in CURR_STATE: 
-        cost[car_id] = distance_between(car, event_location)
+        cost[car_id] = mahalanobis_distance(car, event_location)
     
     return Car_KF with lowest cost # hungarian algorithm step, but only one event so it's just min of a vector
 
