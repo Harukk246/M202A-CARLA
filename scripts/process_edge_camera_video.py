@@ -384,6 +384,7 @@ def main() -> None:
         camera_4_output_frame = {
             'frame': frame_idx,
             'car_detected': True if any(global_ids4) else False,
+            'camera_pos': util.CAMERA_CONFIGS[0]["pos"],
             'cars': []
         }
 
@@ -404,6 +405,7 @@ def main() -> None:
         camera_5_output_frame = {
             'frame': frame_idx,
             'car_detected': True if any(global_ids5) else False,
+            'camera_pos': util.CAMERA_CONFIGS[1]["pos"],
             'cars': []
         }
 
