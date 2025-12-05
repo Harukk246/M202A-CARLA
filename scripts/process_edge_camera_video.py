@@ -10,13 +10,33 @@ import torchvision.models as models
 import torchvision.transforms as T
 import json
 
-PATH_4 = "/home/ubuntu/M202A-CARLA/scripts/global_label_test_videos/camera_4.mp4"
-PATH_5 = "/home/ubuntu/M202A-CARLA/scripts/global_label_test_videos/camera_5.mp4"
+import torchreid
 
-OUTPUT_4_PATH = "/home/ubuntu/M202A-CARLA/scripts/global_label_test_videos/camera_4_input.json"
-OUTPUT_5_PATH = "/home/ubuntu/M202A-CARLA/scripts/global_label_test_videos/camera_5_input.json"
+PATH_4 = "/home/ubuntu/M202A-CARLA/scripts/global_id_test_videos/black_blue/camera_4.mp4"
+PATH_5 = "/home/ubuntu/M202A-CARLA/scripts/global_id_test_videos/black_blue/camera_5.mp4"
+
+OUTPUT_4_PATH = "/home/ubuntu/M202A-CARLA/scripts/global_id_test_videos/black_blue/camera_4_input.json"
+OUTPUT_5_PATH = "/home/ubuntu/M202A-CARLA/scripts/global_id_test_videos/black_blue/camera_5_input.json"
 
 COLOR = (0, 255, 0) # green for active tracking
+
+class ReIDModelOSNet(nn.Module):
+    def __init__(self, embedding_dim: int = 512):
+        super().__init__()
+        # OSNet backbone from Torchreid
+        self.backbone = torchreid.models.build_model(
+            name='osnet_x1_0',          # or osnet_x1_25 if you want bigger
+            num_classes=1000,           # unused for embeddings
+            pretrained=True
+        )
+        # Torchreid models usually expose a 'classifier' / 'head' – drop it for pure embeddings
+        if hasattr(self.backbone, 'classifier'):
+            self.backbone.classifier = nn.Identity()
+
+    def forward(self, x):
+        feat = self.backbone(x)         # [B, C]
+        feat = nn.functional.normalize(feat, p=2, dim=1)
+        return feat
 
 # ---------------------------
 # 1. Simple ReID / embedding model
@@ -193,14 +213,16 @@ def main() -> None:
     print("Loading ReID...")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
-    reid_model = ReIDModel(embedding_dim=128).to(device)
+    # fallback to ReIDModel if needed.
+    reid_model = ReIDModelOSNet(embedding_dim=512).to(device)
     reid_model.eval()
 
     # ---------------------------------------------------------------
     # Global appearance-based tracker (shared across both cameras)
     # ---------------------------------------------------------------
     # WARNING: THIS VALUE IS EXTREMELY SENSITIVE
-    global_tracker = GlobalAppearanceTracker(sim_threshold=0.85)
+    # use 0.86 for regular resnet
+    global_tracker = GlobalAppearanceTracker(sim_threshold=0.65)
 
     # ---------------------------------------------------------------
     # MAIN LOOP BEGIN ===============================================
