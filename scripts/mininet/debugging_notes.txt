@@ -14,6 +14,10 @@ real time = 8 min and 38 seconds
 actual number of frames in mp4: 10362
 actual seconds in mp4: 518.1
 
+command to check number of frames in mp4:
+ffprobe -v error -select_streams v:0 -count_frames \
+  -show_entries stream=nb_read_frames -of default=nokey=1:noprint_wrappers=1 \
+  TEST_camera_25.mp4 
 
 
 
